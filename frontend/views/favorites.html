@@ -1,0 +1,71 @@
+    <!-- Favorites View -->
+    <transition name="fade" mode="out-in" v-cloak>
+        <div v-if="currentTab === 'favorites'" class="space-y-8">
+            <!-- Favorites Header -->
+            <div class="flex flex-col items-center gap-6 py-8 md:py-16">
+                <h1 class="text-4xl md:text-6xl font-normal tracking-tight text-center text-on-surface">
+                    My <span class="text-primary font-medium">Favorites</span>
+                </h1>
+                
+                <!-- Folder Selection -->
+                <div v-if="favFolders.length > 0" class="flex gap-2 overflow-x-auto max-w-full px-4 pb-2 no-scrollbar">
+                    <button v-for="folder in favFolders" :key="folder.id"
+                        @click="changeFavFolder(folder.id)"
+                        class="px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition"
+                        :class="currentFavFolder === folder.id ? 'bg-primary text-on-primary shadow-md' : 'bg-surface-variant text-on-surface-variant hover:bg-surface-variant/80'">
+                        {{ folder.name }}
+                    </button>
+                </div>
+            </div>
+
+            <!-- Empty State -->
+            <div v-if="favorites.length === 0" class="flex flex-col items-center justify-center py-20 opacity-60">
+                <span class="material-symbols-rounded text-6xl text-outline mb-4">favorite_border</span>
+                <p class="font-medium text-on-surface-variant text-lg">No favorites yet</p>
+                <p class="text-sm text-on-surface-variant mt-2">Mark comics as favorite to see them here</p>
+                <button @click="currentTab = 'search'" class="mt-6 md-btn-primary">
+                    Explore Comics
+                </button>
+            </div>
+
+            <!-- Results Grid -->
+            <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
+                <div v-for="item in favorites" :key="item.album_id" 
+                     class="md-card overflow-hidden cursor-pointer group flex flex-col h-full"
+                     @click="viewDetails(item.album_id)">
+                    <!-- Image Container -->
+                    <div class="aspect-[3/4] overflow-hidden relative bg-surface-variant">
+                         <img v-if="item.image" :src="getImageUrl(item.image)" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" loading="lazy" alt="Cover">
+                         <div v-else class="flex flex-col items-center justify-center h-full text-on-surface-variant opacity-50">
+                             <span class="material-symbols-rounded text-5xl">broken_image</span>
+                         </div>
+                         <!-- Gradient Overlay -->
+                         <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-4">
+                             <span class="text-white text-xs font-bold px-2 py-1 bg-primary rounded-md">View Details</span>
+                         </div>
+                    </div>
+                    
+                    <div class="p-4 flex flex-col flex-1">
+                        <h3 class="font-medium text-base line-clamp-2 leading-tight mb-1 group-hover:text-primary transition-colors">{{ item.title }}</h3>
+                        <div class="mt-auto pt-3 flex items-center justify-between opacity-80">
+                            <p class="text-xs truncate max-w-[60%]">{{ item.author }}</p>
+                            <span class="text-[10px] font-bold px-2 py-1 bg-surface-variant rounded-full">{{ item.category }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Pagination for Favorites -->
+            <div v-if="favorites.length > 0" class="flex justify-center items-center gap-6 py-8">
+                 <button @click="changeFavPage(-1)" :disabled="favPage <= 1" 
+                    class="w-12 h-12 rounded-full bg-surface-container-high text-on-surface flex items-center justify-center disabled:opacity-30 hover:bg-primary hover:text-on-primary transition">
+                    <span class="material-symbols-rounded">arrow_back</span>
+                 </button>
+                 <span class="text-lg font-medium">Page {{ favPage }} / {{ favTotalPages }}</span>
+                 <button @click="changeFavPage(1)" :disabled="favPage >= favTotalPages"
+                    class="w-12 h-12 rounded-full bg-surface-container-high text-on-surface flex items-center justify-center disabled:opacity-30 hover:bg-primary hover:text-on-primary transition">
+                    <span class="material-symbols-rounded">arrow_forward</span>
+                 </button>
+            </div>
+        </div>
+    </transition>

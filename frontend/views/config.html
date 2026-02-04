@@ -1,0 +1,128 @@
+    <!-- Config View -->
+    <transition name="fade" mode="out-in" v-cloak>
+        <div v-if="currentTab === 'config'" class="flex items-center justify-center min-h-[80vh]">
+            <div class="md-card p-8 w-full max-w-md shadow-lg border border-white/5">
+                <div class="flex items-center gap-4 mb-8">
+                    <div class="w-16 h-16 rounded-2xl bg-primary-container flex items-center justify-center text-on-primary-container">
+                        <span class="material-symbols-rounded text-4xl">manage_accounts</span>
+                    </div>
+                    <div>
+                        <h2 class="text-3xl font-normal">Settings</h2>
+                        <p class="text-sm opacity-60">Preferences & Account</p>
+                    </div>
+                </div>
+
+                <!-- Theme Toggle -->
+                <div class="flex items-center justify-between p-4 bg-surface-variant/50 rounded-2xl mb-4 border border-outline/10">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-full bg-surface flex items-center justify-center text-primary shadow-sm">
+                            <span class="material-symbols-rounded text-2xl">{{ isDark ? 'dark_mode' : 'light_mode' }}</span>
+                        </div>
+                        <div class="text-left">
+                            <p class="font-bold text-base text-on-surface">Appearance</p>
+                            <p class="text-xs text-on-surface-variant">{{ isDark ? 'Dark Mode' : 'Light Mode' }}</p>
+                        </div>
+                    </div>
+                    <button @click="toggleTheme" class="md-btn-primary !h-10 !px-5 text-sm shadow-none bg-surface-variant hover:bg-primary hover:text-on-primary transition-colors text-primary border border-primary/20">
+                        Switch
+                    </button>
+                </div>
+
+                <!-- Theme Color Selection -->
+                <div class="flex flex-col p-4 bg-surface-variant/50 rounded-2xl mb-4 border border-outline/10">
+                    <div class="flex items-center gap-4 mb-3">
+                        <div class="w-12 h-12 rounded-full bg-surface flex items-center justify-center text-primary shadow-sm">
+                            <span class="material-symbols-rounded text-2xl">palette</span>
+                        </div>
+                        <div class="text-left">
+                            <p class="font-bold text-base text-on-surface">Theme Color</p>
+                            <p class="text-xs text-on-surface-variant">Select your accent color</p>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button @click="setThemeColor('pink')" 
+                            class="h-10 rounded-full border flex items-center justify-center gap-2 text-xs font-medium transition"
+                            :class="themeColor === 'pink' ? 'bg-[#9c4146] text-white border-transparent shadow-md' : 'bg-surface text-on-surface border-outline/20 hover:bg-[#9c4146]/10'">
+                            <span>哔咔粉</span>
+                        </button>
+                        <button @click="setThemeColor('orange')" 
+                            class="h-10 rounded-full border flex items-center justify-center gap-2 text-xs font-medium transition"
+                            :class="themeColor === 'orange' ? 'bg-[#9E4900] text-white border-transparent shadow-md' : 'bg-surface text-on-surface border-outline/20 hover:bg-[#9E4900]/10'">
+                            <span>禁漫橙</span>
+                        </button>
+                        <button @click="setThemeColor('green')" 
+                            class="h-10 rounded-full border flex items-center justify-center gap-2 text-xs font-medium transition"
+                            :class="themeColor === 'green' ? 'bg-[#006D4E] text-white border-transparent shadow-md' : 'bg-surface text-on-surface border-outline/20 hover:bg-[#006D4E]/10'">
+                            <span>EH绿</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- History Control -->
+                <div class="flex flex-col p-4 bg-surface-variant/50 rounded-2xl mb-8 border border-outline/10">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center gap-4">
+                            <div class="w-12 h-12 rounded-full bg-surface flex items-center justify-center text-primary shadow-sm">
+                                <span class="material-symbols-rounded text-2xl">history</span>
+                            </div>
+                            <div class="text-left">
+                                <p class="font-bold text-base text-on-surface">Reading History</p>
+                                <p class="text-xs text-on-surface-variant">{{ Object.keys(readingHistory).length }} items stored</p>
+                            </div>
+                        </div>
+                        <button @click="clearHistory" class="md-btn-primary !h-10 !px-5 text-sm shadow-none bg-surface-variant hover:bg-red-500 hover:text-white transition-colors text-red-500 border border-red-500/20">
+                            Clear
+                        </button>
+                    </div>
+                    
+                    <!-- History List -->
+                    <div class="space-y-2 max-h-60 overflow-y-auto pr-2">
+                        <div v-for="(item, aid) in readingHistory" :key="aid" 
+                             class="flex items-center justify-between p-3 rounded-xl bg-surface hover:bg-surface-container-high transition group">
+                            <div class="flex flex-col flex-1 cursor-pointer" @click="viewDetails(aid)">
+                                <span class="font-medium text-sm group-hover:text-primary transition-colors">{{ item.album_title || 'Comic ' + aid }}</span>
+                                <span class="text-xs text-on-surface-variant">Last: {{ item.title }}</span>
+                            </div>
+                            <button @click.stop="removeHistoryItem(aid)" class="p-2 text-on-surface-variant hover:text-error hover:bg-error/10 rounded-full transition" title="Remove from history">
+                                <span class="material-symbols-rounded text-lg">delete</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div v-if="isLoggedIn" class="text-center space-y-6">
+                    <div class="bg-green-100 dark:bg-green-900/30 p-6 rounded-3xl border border-green-200 dark:border-green-800">
+                        <span class="material-symbols-rounded text-green-700 dark:text-green-400 text-4xl mb-2">check_circle</span>
+                        <p class="text-green-800 dark:text-green-200 font-bold text-lg">Logged In</p>
+                        <p class="text-green-700 dark:text-green-300 mt-1 opacity-80">{{ config.username }}</p>
+                    </div>
+                    <button @click="logout" class="md-btn-primary w-full !bg-error !text-on-error hover:!bg-error/90">
+                        <span class="material-symbols-rounded">logout</span>
+                        Sign Out
+                    </button>
+                </div>
+
+                <div v-else class="space-y-6">
+                    <!-- Message Alert -->
+                    <transition name="fade">
+                        <div v-if="loginMsg" :class="loginMsgType === 'error' ? 'bg-red-100 text-red-700 border-red-200' : 'bg-green-100 text-green-700 border-green-200'" class="p-4 rounded-xl border text-sm font-medium flex items-center gap-2">
+                            <span class="material-symbols-rounded">{{ loginMsgType === 'error' ? 'error' : 'check_circle' }}</span>
+                            {{ loginMsg }}
+                        </div>
+                    </transition>
+
+                    <div class="md-input-container">
+                        <input v-model="config.username" type="text" placeholder="Username" class="md-input w-full p-4 bg-transparent" @keyup.enter="saveConfig">
+                    </div>
+                    <div class="md-input-container">
+                        <input v-model="config.password" type="password" placeholder="Password" class="md-input w-full p-4 bg-transparent" @keyup.enter="saveConfig">
+                    </div>
+                    <button @click="saveConfig" :disabled="loginLoading" class="md-btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed">
+                        <span v-if="loginLoading" class="material-symbols-rounded animate-spin">progress_activity</span>
+                        <span v-else class="material-symbols-rounded">login</span>
+                        {{ loginLoading ? 'Signing In...' : 'Sign In' }}
+                    </button>
+                </div>
+            </div>
+        </div>
+    </transition>
