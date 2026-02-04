@@ -1,5 +1,5 @@
  <div align="center">
-  <img src="https://2z2.org/upload/jm-aura5.png/" alt="JM-Aura" width="300" height="300" />
+  <img src="https://2z2.org/upload/jm-aura5.png/" alt="JM-Aura" width="250" height="250" />
 
  <h1><i>JM-Aura</i></h1>
   <p><i>一个简洁、优雅的 JMComic 浏览/阅读/下载网站应用</i></p>
