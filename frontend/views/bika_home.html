@@ -1,0 +1,126 @@
+    <transition name="fade" mode="out-in" v-cloak>
+        <div v-if="currentTab === 'bika_home'" class="space-y-8 pb-20">
+            <div class="flex flex-col items-center gap-4 py-8 md:py-12">
+                <h1 class="relative inline-block text-4xl md:text-5xl font-normal tracking-tight text-center text-on-surface">
+                    Bika <span class="text-primary font-medium">Comic</span>
+                    <span class="absolute -bottom-2 -right-10 text-xs font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-md border border-primary/20 tracking-wider">AURA</span>
+                </h1>
+                <p class="text-sm opacity-60 text-center max-w-xl">分类 / 榜单 / 随机推荐 / 收藏分区</p>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <button @click="openBikaCategories" class="md-card p-6 text-left border border-outline/10 hover:border-primary/30 transition">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 rounded-2xl bg-primary-container flex items-center justify-center text-on-primary-container">
+                            <span class="material-symbols-rounded text-2xl">category</span>
+                        </div>
+                        <div class="min-w-0">
+                            <div class="font-bold text-lg">分类</div>
+                            <div class="text-xs opacity-60 truncate">按分类筛选后搜索</div>
+                        </div>
+                    </div>
+                </button>
+
+                <button @click="openBikaLeaderboard" class="md-card p-6 text-left border border-outline/10 hover:border-primary/30 transition">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 rounded-2xl bg-primary-container flex items-center justify-center text-on-primary-container">
+                            <span class="material-symbols-rounded text-2xl">leaderboard</span>
+                        </div>
+                        <div class="min-w-0">
+                            <div class="font-bold text-lg">排行榜</div>
+                            <div class="text-xs opacity-60 truncate">24h / 7d / 30d</div>
+                        </div>
+                    </div>
+                </button>
+
+                <button @click="openBikaRandom" class="md-card p-6 text-left border border-outline/10 hover:border-primary/30 transition">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 rounded-2xl bg-primary-container flex items-center justify-center text-on-primary-container">
+                            <span class="material-symbols-rounded text-2xl">casino</span>
+                        </div>
+                        <div class="min-w-0">
+                            <div class="font-bold text-lg">随机</div>
+                            <div class="text-xs opacity-60 truncate">抽一部看看</div>
+                        </div>
+                    </div>
+                </button>
+
+                <button @click="openBikaFavorites" class="md-card p-6 text-left border border-outline/10 hover:border-primary/30 transition">
+                    <div class="flex items-center gap-3">
+                        <div class="w-12 h-12 rounded-2xl bg-primary-container flex items-center justify-center text-on-primary-container">
+                            <span class="material-symbols-rounded text-2xl">favorite</span>
+                        </div>
+                        <div class="min-w-0">
+                            <div class="font-bold text-lg">收藏</div>
+                            <div class="text-xs opacity-60 truncate">我的收藏列表</div>
+                        </div>
+                    </div>
+                </button>
+            </div>
+
+            <div class="md-card p-6 md:p-8">
+                <div class="flex items-center justify-between gap-3 mb-4">
+                    <h3 class="text-xl font-bold flex items-center gap-3">
+                        <span class="material-symbols-rounded text-primary">recommend</span>
+                        随机推荐
+                    </h3>
+                    <button @click="refreshBikaRandomPreview" :disabled="bikaRandomLoading"
+                        class="w-10 h-10 rounded-full bg-surface-variant text-on-surface-variant flex items-center justify-center hover:bg-primary hover:text-on-primary transition disabled:opacity-40">
+                        <span class="material-symbols-rounded" :class="bikaRandomLoading ? 'animate-spin' : ''">refresh</span>
+                    </button>
+                </div>
+
+                <div v-if="!isLoggedIn" class="p-4 rounded-2xl bg-surface-variant/60 border border-outline/10 text-sm text-on-surface-variant flex items-center gap-2">
+                    <span class="material-symbols-rounded text-primary">info</span>
+                    Bika 需要先登录才能获取内容。
+                </div>
+
+                <div v-else-if="bikaRandomLoading" class="flex items-center justify-center py-10 opacity-60">
+                    <span class="material-symbols-rounded text-4xl animate-spin text-primary">progress_activity</span>
+                </div>
+
+                <div v-else-if="bikaRandomPreview" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="md:col-span-2 md-card overflow-hidden cursor-pointer group border border-outline/10" @click="viewDetails(String(bikaRandomPreview.album_id))">
+                        <div class="flex gap-4 p-4">
+                            <div class="w-24 h-32 rounded-2xl overflow-hidden bg-surface-variant flex-shrink-0">
+                                <img v-if="bikaRandomPreview.image" :src="getImageUrl(bikaRandomPreview.image)" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" loading="lazy">
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <div class="text-lg font-bold line-clamp-2 group-hover:text-primary transition">{{ bikaRandomPreview.title }}</div>
+                                <div class="text-sm opacity-70 mt-1">{{ bikaRandomPreview.author || '' }}</div>
+                                <div class="text-xs opacity-60 mt-3 line-clamp-2">{{ (bikaRandomPreview.tags || []).join(' · ') }}</div>
+                                <div class="mt-4 inline-flex items-center gap-2 text-xs font-bold text-primary bg-primary/10 px-3 py-1 rounded-full border border-primary/20">
+                                    <span class="material-symbols-rounded text-base">open_in_new</span>
+                                    打开详情
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="md-card p-4 border border-outline/10">
+                        <div class="text-sm font-bold mb-2 flex items-center gap-2">
+                            <span class="material-symbols-rounded text-primary">bolt</span>
+                            快捷入口
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button @click="openBikaCategories" class="h-11 rounded-2xl bg-surface-variant/60 border border-outline/10 hover:bg-primary hover:text-on-primary transition text-sm font-medium flex items-center justify-center gap-2">
+                                <span class="material-symbols-rounded text-lg">category</span> 分类
+                            </button>
+                            <button @click="openBikaLeaderboard" class="h-11 rounded-2xl bg-surface-variant/60 border border-outline/10 hover:bg-primary hover:text-on-primary transition text-sm font-medium flex items-center justify-center gap-2">
+                                <span class="material-symbols-rounded text-lg">leaderboard</span> 榜单
+                            </button>
+                            <button @click="openBikaRandom" class="h-11 rounded-2xl bg-surface-variant/60 border border-outline/10 hover:bg-primary hover:text-on-primary transition text-sm font-medium flex items-center justify-center gap-2">
+                                <span class="material-symbols-rounded text-lg">casino</span> 随机
+                            </button>
+                            <button @click="openBikaFavorites" class="h-11 rounded-2xl bg-surface-variant/60 border border-outline/10 hover:bg-primary hover:text-on-primary transition text-sm font-medium flex items-center justify-center gap-2">
+                                <span class="material-symbols-rounded text-lg">favorite</span> 收藏
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div v-else class="p-4 rounded-2xl bg-surface-variant/60 border border-outline/10 text-sm text-on-surface-variant">
+                    暂无推荐数据
+                </div>
+            </div>
+        </div>
+    </transition>

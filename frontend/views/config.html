@@ -1,0 +1,220 @@
+    <!-- Config View -->
+    <transition name="fade" mode="out-in" v-cloak>
+        <div v-if="currentTab === 'config'" class="flex items-center justify-center min-h-[80vh]">
+            <div class="md-card p-8 w-full max-w-md shadow-lg border border-white/5">
+                <div class="flex items-center gap-4 mb-8">
+                    <div class="w-16 h-16 rounded-2xl bg-primary-container flex items-center justify-center text-on-primary-container">
+                        <span class="material-symbols-rounded text-4xl">manage_accounts</span>
+                    </div>
+                    <div>
+                        <h2 class="text-3xl font-normal">Settings</h2>
+                        <p class="text-sm opacity-60">Preferences & Account</p>
+                    </div>
+                </div>
+
+                <!-- Theme Toggle -->
+                <div class="flex items-center justify-between p-4 bg-surface-variant/50 rounded-2xl mb-4 border border-outline/10">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-full bg-surface flex items-center justify-center text-primary shadow-sm">
+                            <span class="material-symbols-rounded text-2xl">{{ isDark ? 'dark_mode' : 'light_mode' }}</span>
+                        </div>
+                        <div class="text-left">
+                            <p class="font-bold text-base text-on-surface">Appearance</p>
+                            <p class="text-xs text-on-surface-variant">{{ isDark ? 'Dark Mode' : 'Light Mode' }}</p>
+                        </div>
+                    </div>
+                    <button @click="toggleTheme" class="md-btn-primary !h-10 !px-5 text-sm shadow-none bg-surface-variant hover:bg-primary hover:text-on-primary transition-colors text-primary border border-primary/20">
+                        Switch
+                    </button>
+                </div>
+
+                <!-- Theme Color Selection -->
+                <div class="flex flex-col p-4 bg-surface-variant/50 rounded-2xl mb-4 border border-outline/10">
+                    <div class="flex items-center gap-4 mb-3">
+                        <div class="w-12 h-12 rounded-full bg-surface flex items-center justify-center text-primary shadow-sm">
+                            <span class="material-symbols-rounded text-2xl">palette</span>
+                        </div>
+                        <div class="text-left">
+                            <p class="font-bold text-base text-on-surface">Theme Color</p>
+                            <p class="text-xs text-on-surface-variant">Select your accent color</p>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+                        <button @click="setThemeColor('pink')" 
+                            class="h-10 rounded-full border flex items-center justify-center gap-2 text-xs font-medium transition"
+                            :class="themeColor === 'pink' ? 'bg-[#9c4146] text-white border-transparent shadow-md' : 'bg-surface text-on-surface border-outline/20 hover:bg-[#9c4146]/10'">
+                            <span>哔咔粉</span>
+                        </button>
+                        <button @click="setThemeColor('orange')" 
+                            class="h-10 rounded-full border flex items-center justify-center gap-2 text-xs font-medium transition"
+                            :class="themeColor === 'orange' ? 'bg-[#9E4900] text-white border-transparent shadow-md' : 'bg-surface text-on-surface border-outline/20 hover:bg-[#9E4900]/10'">
+                            <span>禁漫橙</span>
+                        </button>
+                        <button @click="setThemeColor('green')" 
+                            class="h-10 rounded-full border flex items-center justify-center gap-2 text-xs font-medium transition"
+                            :class="themeColor === 'green' ? 'bg-[#006D4E] text-white border-transparent shadow-md' : 'bg-surface text-on-surface border-outline/20 hover:bg-[#006D4E]/10'">
+                            <span>EH绿</span>
+                        </button>
+                        <button @click="setThemeColor('yuuka')" 
+                            class="h-10 rounded-full border flex items-center justify-center gap-2 text-xs font-medium transition"
+                            :class="themeColor === 'yuuka' ? 'bg-[#5A63FF] text-white border-transparent shadow-md' : 'bg-surface text-on-surface border-outline/20 hover:bg-[#5A63FF]/10'">
+                            <span>优香蓝</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between p-4 bg-surface-variant/50 rounded-2xl mb-8 border border-outline/10">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-full bg-surface flex items-center justify-center text-primary shadow-sm">
+                            <span class="material-symbols-rounded text-2xl">history</span>
+                        </div>
+                        <div class="text-left">
+                            <p class="font-bold text-base text-on-surface">History</p>
+                            <p class="text-xs text-on-surface-variant">历史管理已统一到「JM 历史」页面</p>
+                        </div>
+                    </div>
+                    <button @click="currentTab='jm_history'" class="md-btn-primary !h-10 !px-5 text-sm shadow-none bg-surface hover:bg-primary hover:text-on-primary transition-colors text-primary border border-primary/20">
+                        打开
+                    </button>
+                </div>
+
+                <div class="flex flex-col p-4 bg-surface-variant/50 rounded-2xl mb-8 border border-outline/10">
+                    <div class="flex items-center justify-between mb-4">
+                        <div class="flex items-center gap-4">
+                            <div class="w-12 h-12 rounded-full bg-surface flex items-center justify-center text-primary shadow-sm">
+                                <span class="material-symbols-rounded text-2xl">account_circle</span>
+                            </div>
+                            <div class="text-left">
+                                <p class="font-bold text-base text-on-surface">Account</p>
+                                <p class="text-xs text-on-surface-variant">JM Account</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button @click="loadAccountProfile" :disabled="accountProfileLoading || !isLoggedIn"
+                                class="w-10 h-10 rounded-full bg-surface text-on-surface-variant border border-outline/10 hover:bg-primary hover:text-on-primary transition disabled:opacity-40">
+                                <span class="material-symbols-rounded" :class="accountProfileLoading ? 'animate-spin' : ''">refresh</span>
+                            </button>
+                            <button @click="cleanupCache" :disabled="cacheCleanupLoading"
+                                class="w-10 h-10 rounded-full bg-surface text-on-surface-variant border border-outline/10 hover:bg-primary hover:text-on-primary transition disabled:opacity-40"
+                                title="Cleanup cache">
+                                <span class="material-symbols-rounded" :class="cacheCleanupLoading ? 'animate-spin' : ''">delete_sweep</span>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="rounded-2xl bg-surface border border-outline/10 p-4 mb-4">
+                        <div class="flex items-start gap-3">
+                            <div class="w-10 h-10 rounded-2xl bg-primary-container text-on-primary-container flex items-center justify-center flex-shrink-0">
+                                <span class="material-symbols-rounded text-xl">id_card</span>
+                            </div>
+                            <div class="min-w-0 flex-1">
+                                <div class="font-bold text-on-surface">账号功能</div>
+                                <div class="text-xs text-on-surface-variant mt-1">仅保存在本机浏览器（不上报服务器）</div>
+                            </div>
+                        </div>
+                        <div class="space-y-3 mt-4">
+                            <button @click="toggleAccountFeature('savePassword')" class="w-full text-left p-4 rounded-2xl bg-surface-variant/60 border border-outline/10 hover:bg-surface-variant transition">
+                                <div class="flex items-center justify-between gap-3">
+                                    <div class="min-w-0">
+                                        <div class="font-bold">保存密码</div>
+                                        <div class="text-xs opacity-70 mt-1">下次打开自动填充账号密码</div>
+                                    </div>
+                                    <div class="h-9 px-4 rounded-full flex items-center justify-center text-xs font-bold border"
+                                         :class="accountFeatures?.savePassword ? 'bg-primary text-on-primary border-transparent shadow-sm' : 'bg-surface text-on-surface-variant border-outline/20'">
+                                        {{ accountFeatures?.savePassword ? '已开启' : '已关闭' }}
+                                    </div>
+                                </div>
+                            </button>
+                            <button @click="toggleAccountFeature('autoLogin')" class="w-full text-left p-4 rounded-2xl bg-surface-variant/60 border border-outline/10 hover:bg-surface-variant transition">
+                                <div class="flex items-center justify-between gap-3">
+                                    <div class="min-w-0">
+                                        <div class="font-bold">自动登录</div>
+                                        <div class="text-xs opacity-70 mt-1">打开页面时尝试自动登录</div>
+                                    </div>
+                                    <div class="h-9 px-4 rounded-full flex items-center justify-center text-xs font-bold border"
+                                         :class="accountFeatures?.autoLogin ? 'bg-primary text-on-primary border-transparent shadow-sm' : 'bg-surface text-on-surface-variant border-outline/20'">
+                                        {{ accountFeatures?.autoLogin ? '已开启' : '已关闭' }}
+                                    </div>
+                                </div>
+                            </button>
+                            <button @click="toggleAccountFeature('autoCheckin')" class="w-full text-left p-4 rounded-2xl bg-surface-variant/60 border border-outline/10 hover:bg-surface-variant transition">
+                                <div class="flex items-center justify-between gap-3">
+                                    <div class="min-w-0">
+                                        <div class="font-bold">自动签到</div>
+                                        <div class="text-xs opacity-70 mt-1">登录成功后自动执行签到</div>
+                                    </div>
+                                    <div class="h-9 px-4 rounded-full flex items-center justify-center text-xs font-bold border"
+                                         :class="accountFeatures?.autoCheckin ? 'bg-primary text-on-primary border-transparent shadow-sm' : 'bg-surface text-on-surface-variant border-outline/20'">
+                                        {{ accountFeatures?.autoCheckin ? '已开启' : '已关闭' }}
+                                    </div>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div v-if="!isLoggedIn" class="p-4 rounded-2xl bg-surface border border-outline/10 text-sm text-on-surface-variant flex items-center gap-2">
+                        <span class="material-symbols-rounded text-primary">info</span>
+                        <span>登录后可查看资料与签到。</span>
+                    </div>
+
+                    <div v-else class="space-y-4">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div class="p-4 rounded-2xl bg-surface border border-outline/10">
+                                <div class="text-xs text-on-surface-variant">Username</div>
+                                <div class="font-bold mt-1 break-words">{{ accountProfile?.username || config.username }}</div>
+                            </div>
+                            <div class="p-4 rounded-2xl bg-surface border border-outline/10">
+                                <div class="text-xs text-on-surface-variant">Nickname</div>
+                                <div class="font-bold mt-1 break-words">{{ accountProfile?.nickname || '-' }}</div>
+                            </div>
+                            <div class="p-4 rounded-2xl bg-surface border border-outline/10">
+                                <div class="text-xs text-on-surface-variant">Source</div>
+                                <div class="font-bold mt-1 break-words">{{ accountProfile?.source || 'jm' }}</div>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-wrap gap-2 justify-end">
+                            <button @click="accountCheckin" class="h-10 px-5 rounded-full bg-surface border border-outline/10 text-on-surface-variant hover:bg-primary hover:text-on-primary transition font-medium">
+                                <span class="material-symbols-rounded mr-2">task_alt</span>
+                                签到
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div v-if="isLoggedIn" class="text-center space-y-6">
+                    <div class="bg-green-100 dark:bg-green-900/30 p-6 rounded-3xl border border-green-200 dark:border-green-800">
+                        <span class="material-symbols-rounded text-green-700 dark:text-green-400 text-4xl mb-2">check_circle</span>
+                        <p class="text-green-800 dark:text-green-200 font-bold text-lg">Logged In</p>
+                        <p class="text-green-700 dark:text-green-300 mt-1 opacity-80">{{ config.username }}</p>
+                    </div>
+                    <button @click="logout" class="md-btn-primary w-full !bg-error !text-on-error hover:!bg-error/90">
+                        <span class="material-symbols-rounded">logout</span>
+                        Sign Out
+                    </button>
+                </div>
+
+                <div v-else class="space-y-6">
+                    <!-- Message Alert -->
+                    <transition name="fade">
+                        <div v-if="loginMsg" :class="loginMsgType === 'error' ? 'bg-red-100 text-red-700 border-red-200' : 'bg-green-100 text-green-700 border-green-200'" class="p-4 rounded-xl border text-sm font-medium flex items-center gap-2">
+                            <span class="material-symbols-rounded">{{ loginMsgType === 'error' ? 'error' : 'check_circle' }}</span>
+                            {{ loginMsg }}
+                        </div>
+                    </transition>
+
+                    <div class="md-input-container">
+                        <input v-model="config.username" type="text" placeholder="Username" class="md-input w-full p-4 bg-transparent" @keyup.enter="saveConfig">
+                    </div>
+                    <div class="md-input-container">
+                        <input v-model="config.password" type="password" placeholder="Password" class="md-input w-full p-4 bg-transparent" @keyup.enter="saveConfig">
+                    </div>
+                    <button @click="saveConfig" :disabled="loginLoading" class="md-btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed">
+                        <span v-if="loginLoading" class="material-symbols-rounded animate-spin">progress_activity</span>
+                        <span v-else class="material-symbols-rounded">login</span>
+                        {{ loginLoading ? 'Signing In...' : 'Sign In' }}
+                    </button>
+                </div>
+            </div>
+        </div>
+    </transition>

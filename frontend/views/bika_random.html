@@ -1,0 +1,68 @@
+    <transition name="fade" mode="out-in" v-cloak>
+        <div v-if="currentTab === 'bika_random'" class="space-y-6 pb-20">
+            <div class="flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                    <h2 class="text-2xl md:text-3xl font-bold flex items-center gap-3">
+                        <span class="material-symbols-rounded text-primary">casino</span>
+                        Bika 随机
+                    </h2>
+                    <p class="text-sm opacity-60 mt-1">点击刷新抽一部</p>
+                </div>
+                <div class="flex items-center gap-2">
+                    <button @click="refreshBikaRandomPage" :disabled="bikaRandomLoading"
+                        class="w-10 h-10 rounded-full bg-surface-variant text-on-surface-variant flex items-center justify-center hover:bg-primary hover:text-on-primary transition disabled:opacity-40">
+                        <span class="material-symbols-rounded" :class="bikaRandomLoading ? 'animate-spin' : ''">refresh</span>
+                    </button>
+                    <button @click="currentTab = 'bika_home'"
+                        class="w-10 h-10 rounded-full bg-surface-variant text-on-surface-variant flex items-center justify-center hover:bg-primary hover:text-on-primary transition">
+                        <span class="material-symbols-rounded">arrow_back</span>
+                    </button>
+                </div>
+            </div>
+
+            <div v-if="!isLoggedIn" class="md-card p-6 border border-outline/10">
+                <div class="flex items-center gap-3 text-on-surface-variant">
+                    <span class="material-symbols-rounded text-primary">info</span>
+                    <span>请先在 Settings 登录 Bika。</span>
+                </div>
+            </div>
+
+            <div v-else class="md-card p-6 md:p-8 border border-outline/10">
+                <div v-if="bikaRandomLoading" class="flex items-center justify-center py-16 opacity-60">
+                    <span class="material-symbols-rounded text-6xl animate-spin text-primary">progress_activity</span>
+                </div>
+
+                <div v-else-if="bikaRandomPreview" class="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
+                    <div class="md:col-span-1">
+                        <div class="aspect-[3/4] rounded-3xl overflow-hidden bg-surface-variant border border-outline/10">
+                            <img v-if="bikaRandomPreview.image" :src="getImageUrl(bikaRandomPreview.image)" class="w-full h-full object-cover" loading="lazy">
+                        </div>
+                    </div>
+                    <div class="md:col-span-2 space-y-4">
+                        <div>
+                            <div class="text-2xl md:text-3xl font-bold leading-tight break-words">{{ bikaRandomPreview.title }}</div>
+                            <div class="text-sm opacity-70 mt-2">{{ bikaRandomPreview.author || '' }}</div>
+                            <div class="text-xs opacity-60 mt-3">{{ (bikaRandomPreview.tags || []).join(' · ') }}</div>
+                        </div>
+                        <div class="flex flex-wrap gap-3">
+                            <button @click="viewDetails(String(bikaRandomPreview.album_id))" class="md-btn-primary h-11 px-6">
+                                <span class="material-symbols-rounded">open_in_new</span>
+                                打开详情
+                            </button>
+                            <button @click="refreshBikaRandomPage" class="h-11 px-6 rounded-full bg-surface-variant border border-outline/10 text-on-surface-variant hover:bg-primary hover:text-on-primary transition font-medium">
+                                <span class="material-symbols-rounded mr-2">casino</span>
+                                再来一部
+                            </button>
+                        </div>
+                        <div class="p-4 rounded-2xl bg-surface-variant/60 border border-outline/10 text-sm text-on-surface-variant">
+                            提示：如果你想要“按分类随机”，可先去分类页选择分类后搜索。
+                        </div>
+                    </div>
+                </div>
+
+                <div v-else class="p-4 rounded-2xl bg-surface-variant/60 border border-outline/10 text-sm text-on-surface-variant">
+                    暂无数据，点击右上角刷新
+                </div>
+            </div>
+        </div>
+    </transition>
