@@ -19,7 +19,7 @@
 
 <img width="1919" height="1030" alt="电脑端" src="https://github.com/user-attachments/assets/53b48077-9766-4175-aa2f-e366ff471e8d" />
 
-<img width="691" height="954" alt="手机/平板端" src="https://github.com/user-attachments/assets/5e8f4d7d-0a76-4f4b-aafc-0b5808268123" />
+<img width="1919" height="1030" alt="手机/平板端" src="https://github.com/user-attachments/assets/5e8f4d7d-0a76-4f4b-aafc-0b5808268123" />
 
 
 项目结构很简单：
