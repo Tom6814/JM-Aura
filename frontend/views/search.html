@@ -1,0 +1,83 @@
+    <!-- Search View -->
+    <transition name="fade" mode="out-in" v-cloak>
+        <div v-if="currentTab === 'search'" class="space-y-8">
+            <!-- Search Header -->
+            <div class="flex flex-col items-center gap-6 py-4 md:py-16">
+                <h1 class="text-3xl md:text-6xl font-normal tracking-tight text-center text-on-surface">
+                    Explore <span class="text-primary font-medium">Comics</span>
+                </h1>
+                <div class="md-input-container w-full max-w-2xl flex flex-wrap items-center gap-2 px-3 py-2 shadow-sm hover:shadow-md transition-shadow">
+                    <span class="material-symbols-rounded text-on-surface-variant ml-4">search</span>
+                    <input v-model="searchQuery" @keyup.enter="search" type="text" placeholder="Search title, author, or ID..." 
+                        class="md-input flex-1 min-w-0 p-3 sm:p-4 text-base sm:text-lg bg-transparent border-none focus:ring-0">
+                    <button @click="search" class="md-btn-primary !h-10 !px-4 !text-sm shrink-0 w-full sm:w-auto">
+                        Go
+                    </button>
+                </div>
+
+                <div v-if="source === 'jm'" class="w-full max-w-2xl">
+                    <div class="flex items-center justify-between gap-3 px-1">
+                        <div class="text-sm opacity-70 flex items-center gap-2">
+                            <span class="material-symbols-rounded text-primary">filter_alt</span>
+                            分类筛选：<span class="font-bold text-primary">{{ jmSearchCategoryTitle }}</span>
+                        </div>
+                        <button @click="setJmSearchCategory({slug:'0',name:'全部',title:'全部'})"
+                            class="h-9 px-4 rounded-full bg-surface-variant text-on-surface-variant hover:bg-primary hover:text-on-primary transition text-xs font-bold">
+                            清除
+                        </button>
+                    </div>
+                    <div class="mt-3 flex gap-2 overflow-x-auto max-w-full pb-2 no-scrollbar">
+                        <button v-for="c in jmCategories" :key="String(c.slug || c.id || c.name || c.title || c)"
+                            @click="setJmSearchCategory(c)"
+                            class="md-chip px-4 py-2 text-sm font-medium whitespace-nowrap"
+                            :class="jmSearchCategory === getJmCategoryId(c) ? 'md-chip-selected bg-primary text-on-primary shadow-md' : 'hover:bg-surface-variant'">
+                            {{ getJmCategoryTitle(c) }}
+                        </button>
+                    </div>
+                    <div class="text-xs opacity-60 px-1 mt-1">提示：关键词为空时会显示该分类的最新列表</div>
+                </div>
+            </div>
+
+            <!-- Loading State -->
+            <div v-if="loading" class="flex flex-col items-center justify-center py-20 opacity-60">
+                <span class="material-symbols-rounded text-6xl animate-spin text-primary">progress_activity</span>
+                <p class="mt-4 font-medium text-on-surface-variant">Fetching comics...</p>
+            </div>
+
+            <!-- Results Grid -->
+            <div v-else class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
+                <div v-for="item in searchResults" :key="item.album_id" 
+                     class="md-card overflow-hidden cursor-pointer group flex flex-col h-full transition-all duration-300"
+                     @click="viewDetails(item.album_id)">
+                    <div class="aspect-[3/4] overflow-hidden relative bg-surface-variant">
+                         <img :src="getCoverUrl(item)" class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" loading="lazy" alt="Cover">
+                         
+                          <div class="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-4">
+                              <span class="text-white text-xs font-bold px-2 py-1 bg-black/60 rounded-md shadow-sm">View Details</span>
+                         </div>
+                    </div>
+                    
+                    <div class="p-4 flex flex-col flex-1">
+                        <h3 class="font-bold text-base line-clamp-2 leading-tight mb-1 group-hover:text-primary transition-colors">{{ item.title }}</h3>
+                        <div class="mt-auto pt-3 flex items-center justify-between opacity-80">
+                            <p class="text-xs truncate max-w-[60%] text-on-surface-variant">{{ item.author }}</p>
+                            <span class="text-[10px] font-bold px-2 py-1 bg-surface-variant rounded-full text-on-surface-variant">{{ item.category }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Pagination -->
+            <div v-if="searchResults.length > 0" class="flex justify-center items-center gap-6 py-8">
+                 <button @click="changePage(-1)" :disabled="currentPage <= 1" 
+                    class="w-12 h-12 rounded-full bg-surface-container-high text-on-surface flex items-center justify-center disabled:opacity-30 hover:bg-primary hover:text-on-primary transition">
+                    <span class="material-symbols-rounded">arrow_back</span>
+                 </button>
+                 <span class="text-lg font-medium">Page {{ currentPage }}</span>
+                 <button @click="changePage(1)" 
+                    class="w-12 h-12 rounded-full bg-surface-container-high text-on-surface flex items-center justify-center hover:bg-primary hover:text-on-primary transition">
+                    <span class="material-symbols-rounded">arrow_forward</span>
+                 </button>
+            </div>
+        </div>
+    </transition>
