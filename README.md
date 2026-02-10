@@ -19,10 +19,9 @@
 
 <div align="center">
 <img width="1919" height="1030" alt="电脑端界面" src="https://github.com/user-attachments/assets/53b48077-9766-4175-aa2f-e366ff471e8d" />
-**电脑端界面**
 
 <img width="691" height="954" alt="手机/平板端界面" src="https://github.com/user-attachments/assets/3c803d27-5232-497f-85d6-478197e3bf7a" />
-**手机/平板端界面**
+
 </div>
 
 
