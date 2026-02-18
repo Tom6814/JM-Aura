@@ -1,0 +1,394 @@
+<!-- Navigation Rail (Desktop) / Bottom Bar (Mobile) -->
+<nav
+    v-if="currentTab !== 'reader'"
+    class="fixed bottom-0 left-0 w-full z-50 lg:top-0 lg:bottom-auto lg:h-20 lg:z-[130] transition-all duration-300"
+    :class="[
+        currentTab === 'home' && homeTopbarVisible ? 'bg-surface/80 backdrop-blur-md shadow-sm' : 'bg-surface/0',
+        'lg:bg-surface'
+    ]"
+    data-topbar-root="1"
+>
+    <!-- Mobile Bottom Navigation Bar -->
+    <div class="md-nav-bar lg:hidden bg-surface-container-low shadow-[0_-4px_20px_rgba(0,0,0,0.05)] rounded-t-[28px]">
+        <div @click="currentTab = 'home'" class="md-nav-item" :class="{ 'active': currentTab === 'home' }">
+            <div class="md-nav-indicator">
+                <span class="material-symbols-rounded">home</span>
+            </div>
+            <span class="md-nav-label">首页</span>
+        </div>
+
+        <div
+            @pointerdown="onJmNavPressStart"
+            @pointerup="onJmNavPressCancel"
+            @pointercancel="onJmNavPressCancel"
+            @pointerleave="onJmNavPressCancel"
+            @click="onJmRandomNavClick"
+            @contextmenu.prevent="showJmMenu = true; jmNavSuppressClickUntil = Date.now() + 900"
+            class="md-nav-item"
+            :class="{ 'active': currentTab === 'jm_random' }"
+        >
+            <div class="md-nav-indicator">
+                <span class="material-symbols-rounded">casino</span>
+            </div>
+            <span class="md-nav-label">随机</span>
+        </div>
+
+        <div @click="currentTab = 'search'" class="md-nav-item" :class="{ 'active': currentTab === 'search' || currentTab === 'detail' }">
+            <div class="md-nav-indicator">
+                <span class="material-symbols-rounded">search</span>
+            </div>
+            <span class="md-nav-label">搜索</span>
+        </div>
+
+
+
+        <div @click="showUserMenu = true" class="md-nav-item" :class="{ 'active': showUserMenu }">
+            <div class="md-nav-indicator overflow-hidden">
+                <img
+                    v-if="isLoggedIn"
+                    :src="getAccountAvatarSrc()"
+                    class="w-8 h-8 rounded-full object-cover"
+                    alt="Avatar"
+                    @error="onAccountAvatarError"
+                    @load="onAccountAvatarLoad"
+                >
+                <span v-else class="material-symbols-rounded">person</span>
+            </div>
+            <span class="md-nav-label">我的</span>
+        </div>
+    </div>
+
+    <!-- Desktop Top Bar -->
+    <div v-if="currentTab !== 'reader'" v-show="topbarReady" class="hidden lg:flex w-full max-w-[1600px] mx-auto px-8 items-center h-full gap-6 relative z-[60]" data-topbar-desktop="1">
+        <button @click="currentTab = 'home'" class="h-12 px-4 rounded-full hover:bg-surface-container-high transition flex items-center gap-3 shrink-0" data-topbar-logo="1">
+            <span class="material-symbols-rounded text-primary text-3xl">menu_book</span>
+            <span class="font-medium text-xl text-on-surface tracking-tight">Aura</span>
+        </button>
+
+        <div class="flex-1 flex items-center gap-2 min-w-0 bg-surface-container-low/50 p-1.5 rounded-full max-w-fit shadow-sm">
+            <button type="button" @click="currentTab = 'home'" 
+                class="h-10 px-6 rounded-full transition text-sm font-medium flex items-center gap-2 whitespace-nowrap"
+                :class="currentTab === 'home' ? 'bg-secondary-container text-on-secondary-container shadow-sm' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface'">
+                <span class="material-symbols-rounded text-[20px]">home</span>
+                <span>首页</span>
+            </button>
+
+            <div class="w-px h-6 bg-outline-variant/20 mx-1"></div>
+
+            <button v-if="source === 'jm'" type="button" @click="currentTab = 'jm_latest'"
+                class="h-10 px-5 rounded-full transition text-sm font-medium flex items-center gap-2 whitespace-nowrap"
+                :class="currentTab === 'jm_latest' ? 'bg-secondary-container text-on-secondary-container shadow-sm' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface'">
+                最新
+            </button>
+            
+            <button v-if="source === 'jm'" type="button" @click="currentTab = 'jm_categories'"
+                class="h-10 px-5 rounded-full transition text-sm font-medium flex items-center gap-2 whitespace-nowrap"
+                :class="currentTab === 'jm_categories' ? 'bg-secondary-container text-on-secondary-container shadow-sm' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface'">
+                分类
+            </button>
+            
+            <button v-if="source === 'jm'" type="button" @click="currentTab = 'jm_leaderboard'"
+                class="h-10 px-5 rounded-full transition text-sm font-medium flex items-center gap-2 whitespace-nowrap"
+                :class="currentTab === 'jm_leaderboard' ? 'bg-secondary-container text-on-secondary-container shadow-sm' : 'text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface'">
+                排行
+            </button>
+        </div>
+
+        <div class="flex-1"></div>
+
+        <div class="flex items-center gap-3 shrink-0">
+             <div class="relative group">
+                <div class="h-12 px-4 rounded-full bg-surface-container-high transition-all flex items-center gap-3 w-64 ring-1 ring-transparent focus-within:ring-primary/50 focus-within:bg-surface">
+                    <span class="material-symbols-rounded text-on-surface-variant">search</span>
+                    <input
+                        v-model="topbarSearchQuery"
+                        @keydown.enter.prevent="topbarSearch"
+                        class="bg-transparent outline-none text-sm text-on-surface placeholder:text-on-surface-variant/70 w-full"
+                        placeholder="搜索漫画..."
+                    >
+                </div>
+            </div>
+
+            <div class="relative group" data-user-menu="1">
+                <button @click.stop="showUserMenu = !showUserMenu"
+                    class="w-12 h-12 rounded-full bg-surface-container-high overflow-hidden hover:ring-2 hover:ring-primary/20 transition-all duration-300 shadow-sm flex items-center justify-center active:scale-95">
+                    <img
+                        :src="getAccountAvatarSrc()"
+                        class="w-full h-full object-cover"
+                        alt="Avatar"
+                        @error="onAccountAvatarError"
+                        @load="onAccountAvatarLoad"
+                    >
+                </button>
+                
+                <!-- Dropdown Menu -->
+                <transition
+                    enter-active-class="transition duration-200 ease-out"
+                    enter-from-class="transform scale-95 opacity-0 -translate-y-2"
+                    enter-to-class="transform scale-100 opacity-100 translate-y-0"
+                    leave-active-class="transition duration-150 ease-in"
+                    leave-from-class="transform scale-100 opacity-100 translate-y-0"
+                    leave-to-class="transform scale-95 opacity-0 -translate-y-2"
+                >
+                    <div v-if="showUserMenu" class="absolute right-0 top-14 w-72 py-3 bg-surface-container rounded-[28px] shadow-lg shadow-black/10 z-[220] flex flex-col overflow-hidden ring-1 ring-black/5 origin-top-right max-h-[70vh] overflow-y-auto">
+                        <div v-if="isLoggedIn && accountProfile" class="px-5 py-4 mb-2 group/profile cursor-default">
+                            <div class="flex items-center gap-4">
+                                <div class="relative">
+                                    <img
+                                        :src="getAccountAvatarSrc()"
+                                        class="w-14 h-14 rounded-full object-cover bg-surface shadow-sm ring-2 ring-surface transition-transform duration-300 group-hover/profile:scale-105"
+                                        alt="Avatar"
+                                        @error="onAccountAvatarError"
+                                        @load="onAccountAvatarLoad"
+                                    >
+                                </div>
+                                <div class="min-w-0 flex-1">
+                                    <div class="font-bold text-lg text-on-surface truncate tracking-tight">{{ accountProfile.nickname || accountProfile.username || 'User' }}</div>
+                                    <div class="text-xs font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-md w-fit mt-1">{{ getUserLevelLabel(accountProfile) }}</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div v-if="isLoggedIn && accountProfile" class="h-px mx-5 my-1 bg-outline-variant/20"></div>
+
+                        <div class="bg-surface-container-low p-1 space-y-1 rounded-3xl overflow-hidden">
+                            <button @click="currentTab = 'jm_history'; showUserMenu = false" class="w-full px-4 py-3 rounded-full text-left hover:bg-tertiary/5 active:bg-tertiary/10 transition-colors duration-200 flex items-center gap-4 text-sm font-medium text-on-surface group relative overflow-hidden">
+                                <div class="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center text-on-surface-variant group-hover:bg-tertiary/10 group-hover:text-tertiary transition-all duration-300 group-active:scale-95 group-active:rotate-12">
+                                    <span class="material-symbols-rounded">history</span>
+                                </div>
+                                <span class="flex-1 group-hover:text-tertiary transition-colors">历史记录</span>
+                                <span class="material-symbols-rounded text-on-surface-variant/50 text-lg group-hover:translate-x-1 group-hover:text-tertiary transition-all duration-300">chevron_right</span>
+                                <div class="absolute inset-0 bg-tertiary/5 opacity-0 group-active:opacity-100 transition-opacity pointer-events-none"></div>
+                            </button>
+                            <button @click="currentTab = 'jm_favorites'; showUserMenu = false" class="w-full px-4 py-3 rounded-full text-left hover:bg-secondary/5 active:bg-secondary/10 transition-colors duration-200 flex items-center gap-4 text-sm font-medium text-on-surface group relative overflow-hidden">
+                                <div class="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center text-on-surface-variant group-hover:bg-secondary/10 group-hover:text-secondary transition-all duration-300 group-active:scale-95 group-active:scale-110">
+                                    <span class="material-symbols-rounded">favorite</span>
+                                </div>
+                                <span class="flex-1 group-hover:text-secondary transition-colors">收藏夹</span>
+                                <span class="material-symbols-rounded text-on-surface-variant/50 text-lg group-hover:translate-x-1 group-hover:text-secondary transition-all duration-300">chevron_right</span>
+                                <div class="absolute inset-0 bg-secondary/5 opacity-0 group-active:opacity-100 transition-opacity pointer-events-none"></div>
+                            </button>
+                            <button @click="currentTab = 'config'; showUserMenu = false" class="w-full px-4 py-3 rounded-full text-left hover:bg-primary/5 active:bg-primary/10 transition-colors duration-200 flex items-center gap-4 text-sm font-medium text-on-surface group relative overflow-hidden">
+                                <div class="w-10 h-10 rounded-full bg-surface-container-high flex items-center justify-center text-on-surface-variant group-hover:bg-primary/10 group-hover:text-primary transition-all duration-300 group-active:scale-95 group-active:rotate-90">
+                                    <span class="material-symbols-rounded">settings</span>
+                                </div>
+                                <span class="flex-1 group-hover:text-primary transition-colors">设置</span>
+                                <span class="material-symbols-rounded text-on-surface-variant/50 text-lg group-hover:translate-x-1 group-hover:text-primary transition-all duration-300">chevron_right</span>
+                                <div class="absolute inset-0 bg-primary/5 opacity-0 group-active:opacity-100 transition-opacity pointer-events-none"></div>
+                            </button>
+                        </div>
+
+                        <div v-if="isLoggedIn" class="h-px mx-5 my-1 bg-outline-variant/20"></div>
+                        
+                        <div v-if="isLoggedIn" class="bg-surface-container-low p-1 rounded-3xl overflow-hidden mx-2">
+                            <button @click="logout(); showUserMenu = false" class="w-full px-4 py-3 rounded-full text-left hover:bg-error/10 active:bg-error/20 text-error transition-colors duration-200 flex items-center gap-4 text-sm font-medium group relative overflow-hidden">
+                                <div class="w-10 h-10 rounded-full bg-error/10 flex items-center justify-center text-error group-hover:bg-error/20 transition-colors duration-300">
+                                    <span class="material-symbols-rounded group-hover:scale-110 transition-transform">logout</span>
+                                </div>
+                                <span>退出登录</span>
+                            </button>
+                        </div>
+                    </div>
+                </transition>
+            </div>
+        </div>
+    </div>
+</nav>
+
+<!-- Main Content Area -->
+<main class="container mx-auto p-4 sm:p-6 lg:p-8 max-w-7xl" v-cloak>
+    
+    <!-- Global Toast Message -->
+    <transition name="slide-up">
+        <div v-if="globalMsg" class="fixed bottom-24 left-1/2 transform -translate-x-1/2 z-[200] w-auto max-w-sm">
+            <div :class="globalMsgType === 'error' ? 'bg-error text-on-error' : 'bg-surface-container-high text-on-surface'" 
+                 class="px-6 py-3 rounded-full shadow-lg flex items-center gap-3">
+                <span class="material-symbols-rounded text-xl">{{ globalMsgType === 'error' ? 'error' : 'check_circle' }}</span>
+                <span class="font-medium text-sm">{{ globalMsg }}</span>
+            </div>
+        </div>
+    </transition>
+
+    <!-- Confirmation Modal -->
+    <transition name="fade">
+        <div v-if="showConfirmModal" class="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/50">
+            <div class="bg-surface md-card p-6 max-w-sm w-full shadow-2xl scale-100" @click.stop>
+                <h3 class="text-xl font-bold mb-2 text-on-surface">{{ confirmTitle }}</h3>
+                <p class="text-on-surface-variant mb-6">{{ confirmMessage }}</p>
+                <div class="flex justify-end gap-3">
+                    <button @click="handleConfirm(false)" class="px-4 py-2 rounded-full text-primary hover:bg-primary/10 transition font-medium">
+                        Cancel
+                    </button>
+                    <button @click="handleConfirm(true)" class="px-6 py-2 rounded-full bg-primary text-on-primary hover:bg-primary/90 transition font-medium shadow-lg shadow-primary/20">
+                        Confirm
+                    </button>
+                </div>
+            </div>
+        </div>
+    </transition>
+
+    <transition name="fade">
+        <div v-if="showUserMenu" class="fixed inset-0 z-[220] lg:hidden flex items-end justify-center p-4 bg-black/50" data-user-menu-modal="1" @click="showUserMenu = false">
+            <div class="bg-surface md-card p-4 max-w-sm w-full shadow-2xl rounded-[28px]" @click.stop>
+                <div class="flex items-center justify-between gap-3 mb-4">
+                    <div class="text-xl font-bold flex items-center gap-2">
+                        <span class="material-symbols-rounded text-primary">person</span>
+                        我的
+                    </div>
+                    <button @click="showUserMenu = false" class="w-10 h-10 rounded-full bg-surface-variant text-on-surface-variant hover:bg-surface transition flex items-center justify-center">
+                        <span class="material-symbols-rounded">close</span>
+                    </button>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <button v-if="source === 'jm'" @click="currentTab = 'jm_history'; showUserMenu = false" class="h-12 rounded-2xl bg-surface-container hover:bg-primary hover:text-on-primary transition font-medium flex items-center justify-center gap-2">
+                        <span class="material-symbols-rounded">history</span>
+                        历史
+                    </button>
+                    <button v-if="source === 'jm'" @click="currentTab = 'jm_favorites'; showUserMenu = false" class="h-12 rounded-2xl bg-surface-container hover:bg-primary hover:text-on-primary transition font-medium flex items-center justify-center gap-2">
+                        <span class="material-symbols-rounded">favorite</span>
+                        收藏
+                    </button>
+                    <button @click="currentTab = 'config'; showUserMenu = false" class="h-12 rounded-2xl bg-surface-container hover:bg-primary hover:text-on-primary transition font-medium flex items-center justify-center gap-2">
+                        <span class="material-symbols-rounded">settings</span>
+                        设置
+                    </button>
+                    <button v-if="isLoggedIn" @click="logout(); showUserMenu = false" class="h-12 rounded-2xl bg-surface-container hover:bg-error hover:text-on-error transition font-medium flex items-center justify-center gap-2">
+                        <span class="material-symbols-rounded">logout</span>
+                        退出
+                    </button>
+                </div>
+            </div>
+        </div>
+    </transition>
+
+    <transition name="fade">
+        <div v-if="showJmMenu" class="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/50" @click="showJmMenu = false">
+            <div class="bg-surface md-card p-4 md:p-6 max-w-sm w-full shadow-2xl" @click.stop>
+                <div class="flex items-center justify-between gap-3 mb-4">
+                    <div class="text-xl font-bold flex items-center gap-2">
+                        <span class="material-symbols-rounded text-primary">apps</span>
+                        JM
+                    </div>
+                    <button @click="showJmMenu = false" class="w-10 h-10 rounded-full bg-surface-variant text-on-surface-variant hover:bg-surface transition flex items-center justify-center">
+                        <span class="material-symbols-rounded">close</span>
+                    </button>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <button @click="currentTab = 'jm_latest'; showJmMenu = false" class="h-12 rounded-2xl bg-surface-container hover:bg-primary hover:text-on-primary transition font-medium flex items-center justify-center gap-2">
+                        <span class="material-symbols-rounded">new_releases</span>
+                        最新
+                    </button>
+                    <button @click="currentTab = 'jm_categories'; showJmMenu = false" class="h-12 rounded-2xl bg-surface-container hover:bg-primary hover:text-on-primary transition font-medium flex items-center justify-center gap-2">
+                        <span class="material-symbols-rounded">category</span>
+                        分类
+                    </button>
+                    <button @click="currentTab = 'jm_leaderboard'; showJmMenu = false" class="h-12 rounded-2xl bg-surface-container hover:bg-primary hover:text-on-primary transition font-medium flex items-center justify-center gap-2">
+                        <span class="material-symbols-rounded">leaderboard</span>
+                        排行
+                    </button>
+                    <button @click="currentTab = 'jm_random'; showJmMenu = false" class="h-12 rounded-2xl bg-surface-container hover:bg-primary hover:text-on-primary transition font-medium flex items-center justify-center gap-2">
+                        <span class="material-symbols-rounded">casino</span>
+                        随机
+                    </button>
+                    <button @click="currentTab = 'jm_history'; showJmMenu = false" class="h-12 rounded-2xl bg-surface-container hover:bg-primary hover:text-on-primary transition font-medium flex items-center justify-center gap-2 col-span-2">
+                        <span class="material-symbols-rounded">history</span>
+                        历史
+                    </button>
+                </div>
+            </div>
+        </div>
+    </transition>
+
+    <transition name="fade">
+        <div v-if="showFavMenu" class="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/50" @click="showFavMenu = false">
+            <div class="bg-surface md-card p-4 md:p-6 max-w-sm w-full shadow-2xl" @click.stop>
+                <div class="flex items-center justify-between gap-3 mb-4">
+                    <div class="text-xl font-bold flex items-center gap-2">
+                        <span class="material-symbols-rounded text-primary">favorite</span>
+                        收藏
+                    </div>
+                    <button @click="showFavMenu = false" class="w-10 h-10 rounded-full bg-surface-variant text-on-surface-variant hover:bg-surface transition flex items-center justify-center">
+                        <span class="material-symbols-rounded">close</span>
+                    </button>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <button @click="currentTab = 'jm_favorites'; showFavMenu = false" class="h-12 rounded-2xl bg-surface-container hover:bg-primary hover:text-on-primary transition font-medium flex items-center justify-center gap-2">
+                        <span class="material-symbols-rounded">favorite</span>
+                        收藏
+                    </button>
+                    <button @click="currentTab = 'jm_history'; showFavMenu = false" class="h-12 rounded-2xl bg-surface-container hover:bg-primary hover:text-on-primary transition font-medium flex items-center justify-center gap-2">
+                        <span class="material-symbols-rounded">history</span>
+                        历史
+                    </button>
+                </div>
+            </div>
+        </div>
+    </transition>
+
+    <transition name="fade">
+        <div v-if="showDownloadTaskModal" class="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/50">
+            <div class="bg-surface md-card p-6 max-w-md w-full shadow-2xl scale-100" @click.stop>
+                <div class="flex items-start justify-between gap-3 mb-4">
+                    <div class="min-w-0">
+                        <h3 class="text-xl font-bold text-on-surface truncate">下载/打包进度</h3>
+                        <p class="text-sm text-on-surface-variant truncate">{{ downloadTaskInfo?.album_title || selectedAlbum?.title || '' }}</p>
+                    </div>
+                    <button @click="closeDownloadTaskModal" class="w-10 h-10 rounded-full bg-surface-variant text-on-surface-variant hover:bg-surface transition flex items-center justify-center">
+                        <span class="material-symbols-rounded">close</span>
+                    </button>
+                </div>
+
+                <div class="space-y-4">
+                    <div class="rounded-2xl bg-surface-container p-4">
+                        <div class="flex items-center justify-between text-sm mb-2">
+                            <div class="flex items-center gap-2">
+                                <span class="material-symbols-rounded text-primary">downloading</span>
+                                <span class="font-semibold text-on-surface">{{ downloadTaskInfo?.stage || 'queued' }}</span>
+                            </div>
+                            <span class="text-on-surface-variant font-medium">{{ Math.round((downloadTaskInfo?.percent || 0) * 100) }}%</span>
+                        </div>
+                        <div class="h-3 rounded-full bg-surface overflow-hidden">
+                            <div class="h-full bg-primary transition-all duration-300" :style="{ width: Math.min(100, Math.max(0, (downloadTaskInfo?.percent || 0) * 100)) + '%' }"></div>
+                        </div>
+                        <div class="flex items-center justify-between text-xs text-on-surface-variant mt-3">
+                            <span>{{ downloadTaskInfo?.message || '' }}</span>
+                            <span v-if="downloadTaskInfo?.total_images">
+                                {{ downloadTaskInfo?.downloaded_images || 0 }} / {{ downloadTaskInfo?.total_images }} 张
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center justify-end gap-3">
+                        <a v-if="downloadTaskInfo?.status === 'completed' && downloadTaskInfo?.download_url"
+                           :href="downloadTaskInfo.download_url"
+                           target="_blank"
+                           rel="noopener noreferrer"
+                           class="md-btn-primary h-10 px-5">
+                            <span class="material-symbols-rounded mr-2">download</span>
+                            打开下载
+                        </a>
+                        <button v-else class="md-btn-primary h-10 px-5 opacity-60 cursor-not-allowed" disabled>
+                            <span class="material-symbols-rounded mr-2 animate-spin">progress_activity</span>
+                            处理中…
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </transition>
+
+    <!-- Placeholders for Views -->
+    <div id="view-config"></div>
+    <div id="view-home"></div>
+    <div id="view-jm-latest"></div>
+    <div id="view-jm-categories"></div>
+    <div id="view-jm-leaderboard"></div>
+    <div id="view-jm-random"></div>
+    <div id="view-jm-history"></div>
+    <div id="view-jm-favorites"></div>
+    <div id="view-search"></div>
+    <div id="view-detail"></div>
+
+</main>
+
+<!-- Reader Placeholder -->
+<div id="view-reader"></div>

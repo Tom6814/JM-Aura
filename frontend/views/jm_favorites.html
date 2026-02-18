@@ -1,0 +1,349 @@
+<div v-if="currentTab === 'jm_favorites'" class="view-content pb-24 space-y-8 animate-fade-in">
+    <!-- Header -->
+    <div class="flex flex-col md:flex-row md:items-start justify-between gap-4">
+        <div class="min-w-0 space-y-1">
+            <h2 class="headline-medium font-bold text-on-surface flex items-center gap-3">
+                <span class="material-symbols-rounded text-primary filled-icon text-4xl">favorite</span>
+                JM 收藏夹
+            </h2>
+            <p class="text-body-large text-on-surface-variant/80">
+                管理你的收藏和文件夹
+            </p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+            <button v-if="!jmFavSelectionMode" @click="toggleJmFavSelectionMode" 
+                class="h-10 px-5 rounded-full bg-surface-container-high text-on-surface hover:bg-primary hover:text-on-primary transition font-medium flex items-center gap-2 shadow-sm">
+                <span class="material-symbols-rounded text-[20px]">checklist</span>
+                选择
+            </button>
+            <button v-else @click="toggleJmFavSelectionMode" 
+                class="h-10 px-5 rounded-full bg-primary text-on-primary shadow-md transition font-bold flex items-center gap-2">
+                <span class="material-symbols-rounded text-[20px]">close</span>
+                退出选择
+            </button>
+            
+            <div class="w-px h-8 bg-outline-variant/20 mx-1"></div>
+
+            <button @click="openJmFolderCreate" 
+                class="md-btn-primary h-10 px-5 text-label-large">
+                <span class="material-symbols-rounded mr-2 text-[20px]">create_new_folder</span>
+                新建文件夹
+            </button>
+            <button @click="loadJmFavorites(1)" :disabled="jmFavLoading"
+                class="md-icon-btn bg-surface-container-high hover:bg-primary hover:text-on-primary rounded-full"
+                title="刷新">
+                <span class="material-symbols-rounded" :class="jmFavLoading ? 'animate-spin' : ''">refresh</span>
+            </button>
+        </div>
+    </div>
+
+    <div v-if="!isLoggedIn" class="md-card p-8 text-center bg-surface-container">
+        <span class="material-symbols-rounded text-6xl text-outline-variant mb-4">lock</span>
+        <h3 class="headline-small text-on-surface mb-2">需要登录</h3>
+        <p class="text-body-medium text-on-surface-variant mb-6">请在设置中登录 JM 账号以管理收藏。</p>
+        <button @click="currentTab='config'" class="md-btn-primary">前往设置</button>
+    </div>
+
+    <div v-else class="grid grid-cols-1 md:grid-cols-12 gap-6 md:gap-8">
+        <!-- Sidebar: Folders -->
+        <div class="md:col-span-3 space-y-4">
+            <div class="md-card p-4 bg-surface-container-low border-0 sticky top-24">
+                <div class="flex items-center justify-between mb-4 px-2">
+                    <div class="title-medium font-bold text-on-surface flex items-center gap-2">
+                        <span class="material-symbols-rounded text-primary">folder_open</span>
+                        文件夹
+                    </div>
+                    <button @click="loadJmFavorites(1)" :disabled="jmFavLoading"
+                        class="w-8 h-8 rounded-full text-on-surface-variant hover:bg-surface-variant flex items-center justify-center transition">
+                        <span class="material-symbols-rounded text-[18px]" :class="jmFavLoading ? 'animate-spin' : ''">sync</span>
+                    </button>
+                </div>
+
+                <div class="space-y-1 max-h-[60vh] overflow-y-auto no-scrollbar">
+                    <div v-for="f in jmFavFolders" :key="f.id"
+                        @click="selectJmFavFolder(f)"
+                        role="button"
+                        class="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl text-sm font-medium transition-all duration-200 cursor-pointer group"
+                        :class="jmFavFolderId === f.id ? 'bg-primary text-on-primary shadow-md' : 'text-on-surface hover:bg-surface-container-high'">
+                        
+                        <div class="flex items-center gap-3 min-w-0">
+                            <span class="material-symbols-rounded text-[20px] opacity-70">
+                                {{ f.id === '0' ? 'folder_special' : 'folder' }}
+                            </span>
+                            <span class="truncate">{{ f.name }}</span>
+                        </div>
+                        
+                        <div v-if="f.id !== '0'" class="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button @click.stop="openJmFolderRename(f)"
+                                class="w-7 h-7 rounded-full bg-black/10 hover:bg-black/20 dark:bg-white/10 dark:hover:bg-white/20 flex items-center justify-center"
+                                title="重命名">
+                                <span class="material-symbols-rounded text-[14px]">edit</span>
+                            </button>
+                            <button @click.stop="deleteJmFolder(f)"
+                                class="w-7 h-7 rounded-full bg-black/10 hover:bg-error hover:text-on-error dark:bg-white/10 dark:hover:bg-error dark:hover:text-on-error flex items-center justify-center transition-colors"
+                                title="删除">
+                                <span class="material-symbols-rounded text-[14px]">delete</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="md:col-span-9 space-y-6">
+            <!-- Toolbar -->
+            <div class="flex flex-col gap-4">
+                <div class="flex items-center justify-between px-1">
+                    <div class="flex items-center gap-2 text-title-medium">
+                        <span class="font-bold text-on-surface">{{ jmFavFolderTitle }}</span>
+                        <span class="text-on-surface-variant/60 font-mono text-sm">页码 {{ jmFavPage }} / {{ jmFavTotalPages }}</span>
+                    </div>
+                    
+                    <div class="flex items-center gap-2">
+                        <button @click="loadJmFavorites(jmFavPage - 1)" :disabled="jmFavPage <= 1 || jmFavLoading"
+                            class="md-icon-btn bg-surface-container-high hover:bg-primary hover:text-on-primary rounded-full disabled:opacity-30">
+                            <span class="material-symbols-rounded">arrow_back</span>
+                        </button>
+                        <button @click="loadJmFavorites(jmFavPage + 1)" :disabled="jmFavPage >= jmFavTotalPages || jmFavLoading"
+                            class="md-icon-btn bg-surface-container-high hover:bg-primary hover:text-on-primary rounded-full disabled:opacity-30">
+                            <span class="material-symbols-rounded">arrow_forward</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="md-card p-4 bg-surface-container-low border-0 flex flex-col md:flex-row gap-4 items-center">
+                    <!-- Search -->
+                    <div class="flex-1 w-full md-input-container h-12 bg-surface-container px-4 rounded-full flex items-center gap-3 transition-colors focus-within:bg-surface-container-high ring-1 ring-transparent focus-within:ring-primary">
+                        <span class="material-symbols-rounded text-on-surface-variant">search</span>
+                        <input v-model="jmFavTitleFilter" 
+                            class="bg-transparent border-none outline-none flex-1 text-on-surface placeholder:text-on-surface-variant/70 text-body-medium" 
+                            placeholder="筛选标题 (本地)...">
+                    </div>
+
+                    <!-- Batch Actions -->
+                    <div v-if="jmFavSelectionMode" class="flex items-center gap-2 w-full md:w-auto justify-end">
+                        <button @click="toggleJmFavSelectAll" 
+                            class="h-12 px-5 rounded-full bg-surface-container-high text-on-surface hover:bg-primary hover:text-on-primary transition font-medium flex items-center gap-2">
+                            <span class="material-symbols-rounded text-[20px]">select_all</span>
+                            全选
+                        </button>
+                        <button @click="openJmFavBatchMove" :disabled="jmFavSelectedCount === 0"
+                            class="h-12 px-6 rounded-full bg-primary text-on-primary shadow-lg shadow-primary/20 disabled:opacity-40 disabled:shadow-none font-bold flex items-center gap-2 transition-all">
+                            <span class="material-symbols-rounded text-[20px]">drive_file_move</span>
+                            移动 ({{ jmFavSelectedCount }})
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Content Grid -->
+            <loading-state :loading="jmFavLoading && jmFavItems.length === 0">
+                <span class="mt-4 text-body-medium text-on-surface-variant">加载收藏中...</span>
+            </loading-state>
+
+            <div v-if="!jmFavLoading && jmFavItems.length === 0" class="flex flex-col items-center justify-center py-24 opacity-60">
+                <span class="material-symbols-rounded text-8xl text-outline-variant mb-4">favorite_border</span>
+                <p class="headline-small text-on-surface-variant">文件夹为空</p>
+                <button @click="currentTab='search'" class="mt-6 md-btn-primary">去发现内容</button>
+            </div>
+
+            <div v-else-if="!jmFavLoading && jmFavFilteredItems.length === 0" class="flex flex-col items-center justify-center py-24 opacity-60">
+                <span class="material-symbols-rounded text-8xl text-outline-variant mb-4">search_off</span>
+                <p class="headline-small text-on-surface-variant">未找到匹配项</p>
+                <button @click="jmFavTitleFilter=''" class="mt-6 h-10 px-6 rounded-full bg-surface-variant hover:bg-primary hover:text-on-primary transition">清除筛选</button>
+            </div>
+
+            <div v-if="jmFavFilteredItems.length > 0" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
+                <div v-for="item in jmFavFilteredItems" :key="item.album_id"
+                    class="md-card md-card-hover overflow-hidden group flex flex-col h-full cursor-pointer relative bg-surface-container-low border-0"
+                    :class="{'ring-2 ring-primary': jmFavSelectionMode && isJmFavSelected(item.album_id)}">
+                    
+                    <!-- Cover -->
+                    <div class="aspect-[3/4] overflow-hidden relative bg-surface-variant"
+                         @click="jmFavSelectionMode ? toggleJmFavSelectOne(item.album_id) : viewDetails(item.album_id)">
+                        <img v-if="item.image" :src="getImageUrl(item.image)" class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" alt="Cover">
+                        
+                        <!-- Hover Overlay (Normal Mode) -->
+                        <div v-if="!jmFavSelectionMode" class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 flex items-end p-4">
+                            <span class="w-10 h-10 rounded-full bg-primary text-on-primary flex items-center justify-center shadow-lg transform translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300 delay-100">
+                                <span class="material-symbols-rounded">arrow_outward</span>
+                            </span>
+                        </div>
+
+                        <!-- Selection Overlay (Selection Mode) -->
+                        <div v-if="jmFavSelectionMode" class="absolute inset-0 transition-colors duration-200 flex items-start justify-end p-2"
+                            :class="isJmFavSelected(item.album_id) ? 'bg-primary/20' : 'bg-black/10 group-hover:bg-black/20'">
+                            <div class="w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200 backdrop-blur-sm"
+                                :class="isJmFavSelected(item.album_id) ? 'bg-primary text-on-primary shadow-sm' : 'bg-surface/50 text-transparent ring-2 ring-inset ring-white/70'">
+                                <span class="material-symbols-rounded text-lg">check</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Details -->
+                    <div class="p-3 flex flex-col flex-1 gap-2">
+                        <div class="font-bold text-body-medium line-clamp-2 leading-tight group-hover:text-primary transition-colors"
+                             @click="jmFavSelectionMode ? toggleJmFavSelectOne(item.album_id) : viewDetails(item.album_id)">
+                            {{ item.title }}
+                        </div>
+                        <div class="mt-auto pt-2 flex items-center justify-between opacity-80">
+                            <p class="text-xs truncate max-w-[100%] text-on-surface-variant flex items-center gap-1">
+                                <span class="material-symbols-rounded text-[14px] opacity-70">person</span>
+                                {{ item.author }}
+                            </p>
+                        </div>
+                        
+                        <!-- Item Actions (Normal Mode) -->
+                        <div v-if="!jmFavSelectionMode" class="mt-2 pt-2 flex items-center justify-between gap-2">
+                            <button @click="openJmMoveFavorite(item)" class="h-8 px-3 rounded-full bg-surface-container-high text-on-surface-variant hover:bg-primary hover:text-on-primary transition text-[10px] font-bold tracking-wide uppercase">
+                                移动
+                            </button>
+                            <button @click="removeJmFavorite(item)" class="w-8 h-8 rounded-full bg-surface-container-high text-on-surface-variant hover:bg-error hover:text-on-error transition flex items-center justify-center" title="删除">
+                                <span class="material-symbols-rounded text-[16px]">delete</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-center mt-8">
+                <pagination-controls 
+                    v-if="!jmFavLoading && jmFavFilteredItems.length > 0"
+                    :page="jmFavPage" 
+                    :loading="jmFavLoading" 
+                    :has-more="jmFavPage < jmFavTotalPages"
+                    @prev="loadJmFavorites(jmFavPage - 1)" 
+                    @next="loadJmFavorites(jmFavPage + 1)">
+                </pagination-controls>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals (Create Folder) -->
+    <transition name="fade">
+        <div v-if="jmFavShowCreate" class="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <div class="bg-surface-container-high md-card p-6 max-w-sm w-full shadow-2xl border border-outline-variant/10" @click.stop>
+                <div class="headline-small font-bold mb-4 flex items-center gap-3 text-on-surface">
+                    <span class="material-symbols-rounded text-primary">create_new_folder</span>
+                    新建文件夹
+                </div>
+                <div class="md-input-container bg-surface-container">
+                    <input v-model="jmFavNewFolderName" type="text" placeholder="文件夹名称" class="md-input w-full p-4 bg-transparent text-on-surface" @keyup.enter="createJmFolder" autofocus>
+                </div>
+                <div v-if="jmFavCreateError" class="mt-3 p-3 rounded-xl bg-error/10 border border-error/20 text-body-small text-error break-words flex items-start gap-2">
+                    <span class="material-symbols-rounded text-[18px]">error</span>
+                    {{ jmFavCreateError }}
+                </div>
+                <div class="flex justify-end gap-3 mt-8">
+                    <button @click="closeJmFolderCreate" class="px-5 py-2.5 rounded-full text-primary hover:bg-primary/10 transition font-medium">取消</button>
+                    <button @click="createJmFolder" :disabled="!jmFavNewFolderName.trim() || jmFavFolderOpLoading"
+                        class="md-btn-primary h-10 px-6 disabled:opacity-40 disabled:cursor-not-allowed">
+                        <span class="material-symbols-rounded mr-2" :class="jmFavFolderOpLoading ? 'animate-spin' : ''">{{ jmFavFolderOpLoading ? 'progress_activity' : 'check' }}</span>
+                        创建
+                    </button>
+                </div>
+            </div>
+        </div>
+    </transition>
+
+    <!-- Modal (Move Item) -->
+    <transition name="fade">
+        <div v-if="jmFavShowMove" class="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <div class="bg-surface-container-high md-card p-6 max-w-md w-full shadow-2xl border border-outline-variant/10" @click.stop>
+                <div class="flex items-start justify-between gap-3 mb-6">
+                    <div class="min-w-0">
+                        <div class="headline-small font-bold flex items-center gap-3 text-on-surface">
+                            <span class="material-symbols-rounded text-primary">drive_file_move</span>
+                            移动到文件夹
+                        </div>
+                        <div class="text-body-medium opacity-60 mt-1 truncate max-w-full">{{ jmFavMoveTitle }}</div>
+                    </div>
+                    <button @click="closeJmMoveFavorite" class="w-10 h-10 rounded-full bg-surface-variant text-on-surface-variant hover:bg-surface-container-highest transition flex items-center justify-center">
+                        <span class="material-symbols-rounded">close</span>
+                    </button>
+                </div>
+
+                <div class="flex flex-wrap gap-2 max-h-[40vh] overflow-y-auto p-1">
+                    <button v-for="f in jmFavFolders" :key="f.id"
+                        @click="jmFavMoveFolderId = f.id"
+                        class="h-10 px-5 rounded-full text-sm font-medium transition-all duration-200 border border-transparent"
+                        :class="jmFavMoveFolderId === f.id ? 'bg-primary text-on-primary shadow-md' : 'bg-surface-container text-on-surface hover:bg-surface-variant hover:border-outline-variant/30'">
+                        {{ f.name }}
+                    </button>
+                </div>
+
+                <div class="flex justify-end gap-3 mt-8">
+                    <button @click="closeJmMoveFavorite" class="px-5 py-2.5 rounded-full text-primary hover:bg-primary/10 transition font-medium">取消</button>
+                    <button @click="confirmJmMoveFavorite" :disabled="jmFavFolderOpLoading || !jmFavMoveFolderId"
+                        class="md-btn-primary h-10 px-6 disabled:opacity-40 disabled:cursor-not-allowed">
+                        <span class="material-symbols-rounded mr-2" :class="jmFavFolderOpLoading ? 'animate-spin' : ''">{{ jmFavFolderOpLoading ? 'progress_activity' : 'check' }}</span>
+                        确认移动
+                    </button>
+                </div>
+            </div>
+        </div>
+    </transition>
+
+    <!-- Modal (Batch Move) -->
+    <transition name="fade">
+        <div v-if="jmFavShowBatchMove" class="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <div class="bg-surface-container-high md-card p-6 max-w-md w-full shadow-2xl border border-outline-variant/10" @click.stop>
+                <div class="flex items-start justify-between gap-3 mb-6">
+                    <div class="min-w-0">
+                        <div class="headline-small font-bold flex items-center gap-3 text-on-surface">
+                            <span class="material-symbols-rounded text-primary">drive_file_move</span>
+                            批量移动
+                        </div>
+                        <div class="text-body-medium opacity-60 mt-1 truncate">正在移动 {{ jmFavSelectedCount }} 项</div>
+                    </div>
+                    <button @click="closeJmFavBatchMove" class="w-10 h-10 rounded-full bg-surface-variant text-on-surface-variant hover:bg-surface-container-highest transition flex items-center justify-center">
+                        <span class="material-symbols-rounded">close</span>
+                    </button>
+                </div>
+
+                <div class="flex flex-wrap gap-2 max-h-[40vh] overflow-y-auto p-1">
+                    <button v-for="f in jmFavFolders" :key="f.id"
+                        @click="jmFavBatchFolderId = f.id"
+                        class="h-10 px-5 rounded-full text-sm font-medium transition-all duration-200 border border-transparent"
+                        :class="jmFavBatchFolderId === f.id ? 'bg-primary text-on-primary shadow-md' : 'bg-surface-container text-on-surface hover:bg-surface-variant hover:border-outline-variant/30'">
+                        {{ f.name }}
+                    </button>
+                </div>
+
+                <div class="flex justify-end gap-3 mt-8">
+                    <button @click="closeJmFavBatchMove" class="px-5 py-2.5 rounded-full text-primary hover:bg-primary/10 transition font-medium">取消</button>
+                    <button @click="confirmJmFavBatchMove" :disabled="jmFavBatchMoving || !jmFavBatchFolderId || jmFavSelectedCount === 0"
+                        class="md-btn-primary h-10 px-6 disabled:opacity-40 disabled:cursor-not-allowed">
+                        <span class="material-symbols-rounded mr-2" :class="jmFavBatchMoving ? 'animate-spin' : ''">{{ jmFavBatchMoving ? 'progress_activity' : 'check' }}</span>
+                        移动全部
+                    </button>
+                </div>
+            </div>
+        </div>
+    </transition>
+
+    <!-- Modal (Rename Folder) -->
+    <transition name="fade">
+        <div v-if="jmFavShowRename" class="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+            <div class="bg-surface-container-high md-card p-6 max-w-sm w-full shadow-2xl border border-outline-variant/10" @click.stop>
+                <div class="headline-small font-bold mb-4 flex items-center gap-3 text-on-surface">
+                    <span class="material-symbols-rounded text-primary">edit</span>
+                    重命名文件夹
+                </div>
+                <div class="md-input-container bg-surface-container">
+                    <input v-model="jmFavRenameFolderName" type="text" placeholder="文件夹名称" class="md-input w-full p-4 bg-transparent text-on-surface" @keyup.enter="confirmJmFolderRename" autofocus>
+                </div>
+                <div class="text-body-small opacity-60 mt-3 pl-1">注：部分系统文件夹可能不支持重命名。</div>
+                <div class="flex justify-end gap-3 mt-8">
+                    <button @click="closeJmFolderRename" class="px-5 py-2.5 rounded-full text-primary hover:bg-primary/10 transition font-medium">取消</button>
+                    <button @click="confirmJmFolderRename" :disabled="!jmFavRenameFolderName.trim() || jmFavFolderOpLoading"
+                        class="md-btn-primary h-10 px-6 disabled:opacity-40 disabled:cursor-not-allowed">
+                        <span class="material-symbols-rounded mr-2" :class="jmFavFolderOpLoading ? 'animate-spin' : ''">{{ jmFavFolderOpLoading ? 'progress_activity' : 'check' }}</span>
+                        重命名
+                    </button>
+                </div>
+            </div>
+        </div>
+    </transition>
+</div>

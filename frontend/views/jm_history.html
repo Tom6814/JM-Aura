@@ -1,0 +1,138 @@
+<div v-if="currentTab === 'jm_history'" class="view-content pb-24 space-y-8 animate-fade-in">
+    <!-- Header -->
+    <div class="flex items-start justify-between gap-4">
+        <div class="min-w-0 space-y-1">
+            <h2 class="headline-medium font-bold text-on-surface flex items-center gap-3">
+                <span class="material-symbols-rounded text-primary filled-icon text-4xl">history</span>
+                历史记录
+            </h2>
+            <p class="text-body-large text-on-surface-variant/80">
+                <span v-if="jmHistoryMode === 'local'">本地阅读历史 (仅存储于此设备)</span>
+                <span v-else>账号同步历史 (从服务器同步)</span>
+            </p>
+        </div>
+        <div class="flex items-center gap-2">
+            <button v-if="jmHistoryMode === 'remote'" @click="loadJmHistory(1)" :disabled="jmHistoryLoading"
+                class="md-icon-btn bg-surface-container-high hover:bg-primary hover:text-on-primary rounded-full"
+                title="刷新">
+                <span class="material-symbols-rounded" :class="jmHistoryLoading ? 'animate-spin' : ''">refresh</span>
+            </button>
+            <button v-else @click="clearHistory"
+                class="md-icon-btn bg-error-container text-on-error-container hover:bg-error hover:text-on-error rounded-full"
+                title="清除本地历史">
+                <span class="material-symbols-rounded">delete_sweep</span>
+            </button>
+            <button @click="currentTab = 'home'"
+                class="md-icon-btn bg-surface-container-high hover:bg-primary hover:text-on-primary rounded-full"
+                title="返回首页">
+                <span class="material-symbols-rounded">arrow_back</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Mode Switcher -->
+    <div class="md-card p-2 bg-surface-container-low border-0 inline-flex items-center gap-1 rounded-full w-auto self-start">
+        <button @click="setJmHistoryMode('local')"
+            class="h-10 px-6 rounded-full text-sm font-bold transition-all duration-300 flex items-center gap-2"
+            :class="jmHistoryMode === 'local' ? 'bg-primary text-on-primary shadow-md' : 'text-on-surface-variant hover:bg-surface-variant'">
+            <span class="material-symbols-rounded text-[18px]">smartphone</span>
+            本地 ({{ jmLocalHistoryItems.length }})
+        </button>
+        <button @click="setJmHistoryMode('remote')"
+            class="h-10 px-6 rounded-full text-sm font-bold transition-all duration-300 flex items-center gap-2"
+            :class="jmHistoryMode === 'remote' ? 'bg-primary text-on-primary shadow-md' : 'text-on-surface-variant hover:bg-surface-variant'">
+            <span class="material-symbols-rounded text-[18px]">cloud</span>
+            云端
+        </button>
+    </div>
+
+    <!-- Remote History -->
+    <div v-if="jmHistoryMode === 'remote'" class="space-y-6">
+        <div v-if="!isLoggedIn" class="md-card p-8 text-center bg-surface-container">
+            <span class="material-symbols-rounded text-6xl text-outline-variant mb-4">lock</span>
+            <h3 class="headline-small text-on-surface mb-2">需要登录</h3>
+            <p class="text-body-medium text-on-surface-variant mb-6">请在设置中登录 JM 账号以查看云端历史。</p>
+            <button @click="currentTab='config'" class="md-btn-primary">前往设置</button>
+        </div>
+
+        <div v-else class="space-y-4">
+            <loading-state :loading="jmHistoryLoading && jmHistoryItems.length === 0">
+                <span class="mt-4 text-body-medium text-on-surface-variant">加载历史记录中...</span>
+            </loading-state>
+
+            <error-state :error="jmHistoryError" @retry="loadJmHistory(1)"></error-state>
+
+            <div v-if="!jmHistoryLoading && !jmHistoryError && jmHistoryItems.length === 0" class="flex flex-col items-center justify-center py-24 opacity-60">
+                <span class="material-symbols-rounded text-8xl text-outline-variant mb-4">history_toggle_off</span>
+                <p class="headline-small text-on-surface-variant">暂无云端历史</p>
+            </div>
+
+            <div v-if="jmHistoryItems.length > 0" class="space-y-3">
+                <div v-for="it in jmHistoryItems" :key="String(it.album_id || it.id || it)"
+                    class="group flex items-center gap-4 p-4 rounded-3xl bg-surface-container-low hover:bg-surface-container-high transition-colors cursor-pointer border-none shadow-sm hover:shadow-md"
+                    @click="viewDetails(String(it.album_id || it.id || ''))">
+                    
+                    <div class="w-20 h-28 rounded-xl overflow-hidden bg-surface-variant shadow-sm flex-shrink-0 relative group-hover:shadow-md transition-shadow">
+                        <img v-if="it.image" :src="getImageUrl(it.image)" class="w-full h-full object-cover" loading="lazy">
+                        <div class="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-colors"></div>
+                    </div>
+                    
+                    <div class="min-w-0 flex-1 space-y-1">
+                        <div class="title-medium font-bold truncate text-on-surface group-hover:text-primary transition-colors">{{ it.title || it.name || 'Unknown' }}</div>
+                        <div class="text-body-small text-on-surface-variant flex items-center gap-2">
+                            <span class="material-symbols-rounded text-[16px]">person</span>
+                            <span class="truncate">{{ it.author || '未知作者' }}</span>
+                        </div>
+                    </div>
+                    
+                    <span class="material-symbols-rounded text-outline-variant group-hover:text-primary group-hover:translate-x-1 transition-all mr-2">chevron_right</span>
+                </div>
+
+                <!-- Pagination -->
+                <div class="flex flex-col items-center gap-4 mt-8">
+                     <div v-if="jmHistoryLoading" class="flex items-center justify-center py-4 opacity-60">
+                        <span class="material-symbols-rounded text-4xl animate-spin text-primary">progress_activity</span>
+                    </div>
+
+                    <pagination-controls 
+                        v-if="!jmHistoryLoading"
+                        :page="jmHistoryPage" 
+                        :loading="jmHistoryLoading" 
+                        :has-more="true"
+                        @prev="loadJmHistory(jmHistoryPage - 1)" 
+                        @next="loadJmHistory(jmHistoryPage + 1)">
+                    </pagination-controls>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Local History -->
+    <div v-else class="space-y-6">
+        <div v-if="jmLocalHistoryItems.length === 0" class="flex flex-col items-center justify-center py-24 opacity-60">
+            <span class="material-symbols-rounded text-8xl text-outline-variant mb-4">history_edu</span>
+            <p class="headline-small text-on-surface-variant">暂无本地历史</p>
+            <p class="text-body-medium mt-2 text-on-surface-variant/70">开始阅读以记录历史</p>
+        </div>
+
+        <div v-else class="space-y-3">
+            <div v-for="it in jmLocalHistoryItems" :key="it.album_id"
+                class="group flex items-center gap-4 p-4 rounded-3xl bg-surface-container-low hover:bg-surface-container-high transition-colors border-none shadow-sm hover:shadow-md">
+                
+                <div class="min-w-0 flex-1 cursor-pointer space-y-1" @click="viewDetails(it.album_id)">
+                    <div class="title-medium font-bold truncate text-on-surface group-hover:text-primary transition-colors">{{ it.album_title }}</div>
+                    <div class="text-body-small text-on-surface-variant flex items-center gap-2">
+                        <span class="px-2 py-0.5 rounded-full bg-primary/10 text-primary font-mono text-xs">上次阅读</span>
+                        <span class="truncate opacity-80">{{ it.title }}</span>
+                    </div>
+                </div>
+                
+                <button @click.stop="removeHistoryItem(it.album_id)"
+                    class="w-10 h-10 rounded-full bg-surface-variant text-on-surface-variant hover:bg-error hover:text-on-error transition flex items-center justify-center shadow-sm"
+                    title="从历史记录中移除">
+                    <span class="material-symbols-rounded text-[20px]">delete</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
