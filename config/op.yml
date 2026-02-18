@@ -1,11 +1,12 @@
 client:
   domain: []
-  password: '114514114514'
+  password: ''
   postman:
     headers:
       User-Agent: Mozilla/5.0
     type: requests
-  username: Tom6814
+  username: 
 download:
   image:
     decode: true
+
