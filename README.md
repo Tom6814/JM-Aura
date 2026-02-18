@@ -20,7 +20,8 @@
 <div align="center">
 <img width="1919" height="1030" alt="电脑端界面" src="https://github.com/user-attachments/assets/f8a7aedf-7324-4f40-9543-11a104148296" />
 
-<img width="623" height="1025" alt="手机/平板端界面" src="https://github.com/user-attachments/assets/b89d83f8-6425-48a1-bf5c-6c8a92544171" />
+<img width="624" height="1029" alt="手机/平板端界面" src="https://github.com/user-attachments/assets/c55b98ee-3151-43cc-ae88-147ee4bbd603" />
+
 
 
 
