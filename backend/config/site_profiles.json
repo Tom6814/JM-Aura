@@ -1,0 +1,1 @@
+{"v": 1, "users": {"alice": {"theme": {"dark": true, "color": "green"}, "features": {"savePassword": false, "autoLogin": true}, "updated_at": 1771856060}, "Tom6814": {"theme": {"dark": true, "color": "orange"}, "features": {"savePassword": true, "autoLogin": false, "autoCheckin": true}, "updated_at": 1771863715}}}
