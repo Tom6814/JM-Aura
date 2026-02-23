@@ -1,0 +1,123 @@
+<div v-if="currentTab === 'jm_categories'" class="view-content pb-24 space-y-8 animate-fade-in">
+    <!-- Header -->
+    <div class="flex items-start justify-between gap-4">
+        <div class="min-w-0 space-y-1">
+            <h2 class="headline-medium font-bold text-on-surface flex items-center gap-3">
+                <span class="material-symbols-rounded text-primary filled-icon text-4xl">category</span>
+                JM 分类
+            </h2>
+            <p class="text-body-large text-on-surface-variant/80">
+                浏览和搜索特定分类下的漫画
+            </p>
+        </div>
+        <div class="flex items-center gap-2">
+            <button @click="loadJmCategories" :disabled="jmCategoriesLoading"
+                class="md-icon-btn bg-surface-container-high hover:bg-primary hover:text-on-primary rounded-full"
+                title="刷新分类">
+                <span class="material-symbols-rounded" :class="jmCategoriesLoading ? 'animate-spin' : ''">refresh</span>
+            </button>
+            <button @click="currentTab = 'home'"
+                class="md-icon-btn bg-surface-container-high hover:bg-primary hover:text-on-primary rounded-full"
+                title="返回首页">
+                <span class="material-symbols-rounded">arrow_back</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Search & Filter Controls -->
+    <div class="md-card p-6 space-y-6 bg-surface-container-low border-0">
+        <!-- Search Bar -->
+        <div class="flex flex-col md:flex-row gap-4">
+            <div class="flex-1 md-input-container h-14 bg-surface-container px-4 rounded-full flex items-center gap-3 transition-colors focus-within:bg-surface-container-high ring-1 ring-transparent focus-within:ring-primary">
+                <span class="material-symbols-rounded text-on-surface-variant">search</span>
+                <input v-model="jmCategoryKeyword" 
+                    class="bg-transparent border-none outline-none flex-1 text-on-surface placeholder:text-on-surface-variant/70 text-body-large" 
+                    placeholder="在此分类中搜索...">
+            </div>
+            <button @click="jmSearchInCategory" :disabled="!jmSelectedCategory || !jmCategoryKeyword.trim()"
+                class="md-btn-primary h-14 px-8 rounded-full text-label-large uppercase tracking-wide disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-primary/20">
+                <span class="material-symbols-rounded mr-2">travel_explore</span>
+                搜索
+            </button>
+        </div>
+
+        <!-- Info Bar -->
+        <div class="flex items-center justify-between text-body-medium text-on-surface-variant px-1">
+            <div class="flex items-center gap-2">
+                <span>当前选择:</span>
+                <span class="font-bold text-primary bg-primary/10 px-3 py-1 rounded-full">{{ jmSelectedCategoryTitle || '无' }}</span>
+            </div>
+            <div class="flex gap-4 text-xs font-mono opacity-60">
+                <span>ID: {{ jmSelectedCategory || '0' }}</span>
+            </div>
+        </div>
+
+        <!-- Category Chips -->
+        <div v-if="jmCategoriesLoading" class="flex items-center justify-center py-10 opacity-60">
+            <span class="material-symbols-rounded text-4xl animate-spin text-primary">progress_activity</span>
+        </div>
+        
+        <div v-else-if="jmCategoriesError" class="p-4 rounded-2xl bg-error-container text-on-error-container flex items-center gap-4">
+            <span class="material-symbols-rounded">error</span>
+            <div class="flex-1 font-medium">{{ jmCategoriesError }}</div>
+            <button @click="loadJmCategories" class="text-label-large font-bold underline hover:no-underline">重试</button>
+        </div>
+
+        <div v-else class="flex gap-2 overflow-x-auto max-w-full pb-2 no-scrollbar mask-linear-fade">
+            <button v-for="c in jmCategories" :key="String(c.CID || c.id || c.name || c.title || c)"
+                @click="selectJmCategory(c)"
+                class="md-chip h-10 px-5 text-sm font-medium whitespace-nowrap transition-all duration-300"
+                :class="jmSelectedCategory === getJmCategoryId(c) ? 'bg-primary text-on-primary shadow-lg shadow-primary/30' : 'hover:bg-surface-container-high'">
+                {{ getJmCategoryTitle(c) }}
+            </button>
+        </div>
+    </div>
+
+    <!-- Content Area -->
+    <loading-state :loading="jmCategoryLoading && jmCategoryItems.length === 0">
+        <span class="mt-4 text-body-medium text-on-surface-variant">加载分类内容中...</span>
+    </loading-state>
+
+    <error-state :error="jmCategoryError" @retry="loadJmCategoryList(jmSelectedCategory, 1)"></error-state>
+
+    <div v-if="jmCategoryItems.length > 0" class="space-y-6">
+        <div class="flex items-center justify-between px-2">
+            <h3 class="title-large font-bold text-on-surface flex items-center gap-2">
+                <span class="w-1.5 h-6 bg-primary rounded-full"></span>
+                结果列表
+            </h3>
+            <button @click="loadJmCategoryList(jmSelectedCategory, 1)" :disabled="jmCategoryLoading || !jmSelectedCategory"
+                class="text-label-large font-medium text-primary hover:text-on-surface transition disabled:opacity-40">
+                刷新列表
+            </button>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
+            <book-card 
+                v-for="book in jmCategoryItems" 
+                :key="book.album_id" 
+                :book="book" 
+                @click="viewDetails">
+            </book-card>
+        </div>
+
+        <loading-state :loading="jmCategoryLoading">
+             <span class="mt-2 text-sm">加载更多...</span>
+        </loading-state>
+
+        <pagination-controls 
+            v-if="!jmCategoryLoading"
+            :page="jmCategoryPage" 
+            :loading="jmCategoryLoading" 
+            :has-more="true"
+            @prev="loadJmCategoryList(jmSelectedCategory, jmCategoryPage - 1)" 
+            @next="loadJmCategoryList(jmSelectedCategory, jmCategoryPage + 1)">
+        </pagination-controls>
+    </div>
+
+    <div v-else-if="jmSelectedCategory && !jmCategoryLoading" class="md-card p-12 text-center opacity-60 bg-transparent">
+        <span class="material-symbols-rounded text-6xl text-outline-variant mb-4">folder_open</span>
+        <div class="headline-small text-on-surface-variant">分类为空</div>
+        <div class="text-body-medium mt-2">尝试选择其他分类或刷新</div>
+    </div>
+</div>

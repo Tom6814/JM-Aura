@@ -1,0 +1,317 @@
+<!-- Detail View -->
+<transition name="fade" mode="out-in" v-cloak>
+    <div v-if="currentTab === 'detail'" class="min-h-screen pb-28 bg-surface">
+        <div v-if="selectedAlbum">
+            <!-- 1. Immersive Hero Header -->
+            <div class="relative w-full h-[45vh] lg:h-[55vh] overflow-hidden group rounded-b-[32px] md:rounded-b-[48px] shadow-xl">
+                <!-- Parallax Background -->
+                <div class="absolute inset-0 select-none pointer-events-none">
+                    <img v-if="selectedAlbum.image" :src="getImageUrl(selectedAlbum.image)"
+                         class="w-full h-full object-cover blur-3xl scale-125 opacity-60 dark:opacity-40">
+                    <div class="absolute inset-0 bg-gradient-to-t from-surface via-surface/60 to-transparent"></div>
+                    <div class="absolute inset-0 bg-gradient-to-b from-black/20 to-transparent"></div>
+                </div>
+
+                <!-- Top Navigation (Floating) -->
+                <div class="fixed top-0 lg:top-20 left-0 right-0 p-4 lg:p-8 flex items-center justify-between z-[160] pt-[env(safe-area-inset-top)] lg:pt-0 pointer-events-none">
+                    <button @click="goBackFromDetail"
+                        class="h-12 w-12 rounded-full bg-surface/20 backdrop-blur-xl text-on-surface hover:bg-surface hover:scale-105 transition-all shadow-lg flex items-center justify-center group/btn ring-1 ring-white/10 pointer-events-auto">
+                        <span class="material-symbols-rounded group-hover/btn:-translate-x-0.5 transition-transform">arrow_back</span>
+                    </button>
+                    
+                    <div class="flex gap-3 pointer-events-auto">
+                         <button @click="toggleFavorite(selectedAlbum)"
+                            class="h-12 w-12 rounded-full backdrop-blur-xl flex items-center justify-center transition-all shadow-lg ring-1 ring-white/10"
+                            :class="isFavorite(selectedAlbum.album_id) ? 'bg-secondary-container text-on-secondary-container' : 'bg-surface/20 text-on-surface hover:bg-surface'">
+                            <span class="material-symbols-rounded" :class="{'font-variation-settings-fill': isFavorite(selectedAlbum.album_id)}">favorite</span>
+                        </button>
+                         <button @click="shareAlbum(selectedAlbum)" class="h-12 w-12 rounded-full bg-surface/20 backdrop-blur-xl text-on-surface hover:bg-surface transition-all shadow-lg flex items-center justify-center ring-1 ring-white/10">
+                            <span class="material-symbols-rounded">share</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Header Content (Bottom Aligned) -->
+                <div class="absolute bottom-0 left-0 right-0 p-6 md:p-12 lg:p-16 max-w-[1600px] mx-auto z-40">
+                    <div class="flex flex-col md:flex-row gap-6 md:gap-8 items-start md:items-end">
+                         <!-- Cover Image (Floating) -->
+                        <div class="shrink-0 relative w-32 md:w-48 lg:w-56 aspect-[3/4] rounded-[24px] overflow-hidden shadow-2xl ring-1 ring-white/10 hidden md:block">
+                             <img v-if="selectedAlbum.image" :src="getImageUrl(selectedAlbum.image)" class="w-full h-full object-cover">
+                        </div>
+
+                        <!-- Mobile Cover (Visible only on small screens) -->
+                        <div class="md:hidden flex gap-5 w-full">
+                            <div class="shrink-0 relative w-28 aspect-[3/4] rounded-2xl overflow-hidden shadow-2xl ring-1 ring-white/10">
+                                 <img v-if="selectedAlbum.image" :src="getImageUrl(selectedAlbum.image)" class="w-full h-full object-cover">
+                            </div>
+                            <div class="flex-1 flex flex-col justify-end gap-2 pb-1">
+                                <div class="flex flex-wrap gap-2">
+                                    <span class="md-chip h-6 px-2.5 text-[10px] bg-primary/20 text-primary border-none backdrop-blur-md font-bold">MANGA</span>
+                                    <span class="md-chip h-6 px-2.5 text-[10px] bg-surface/30 text-on-surface border-none backdrop-blur-md font-mono">{{ selectedAlbum.album_id }}</span>
+                                </div>
+                                <h1 class="text-xl font-bold text-on-surface leading-tight line-clamp-3 text-shadow-sm">
+                                    {{ selectedAlbum.title }}
+                                </h1>
+                                <div v-if="getHistoryText(selectedAlbum.album_id)" class="text-xs text-primary/90 bg-primary/10 px-3 py-1 rounded-full w-fit backdrop-blur-md">
+                                    {{ getHistoryText(selectedAlbum.album_id) }}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex-1 min-w-0 pb-2 space-y-4 hidden md:block">
+                            <!-- Tags Row -->
+                            <div class="flex flex-wrap gap-2">
+                                <span class="md-chip h-8 px-3 text-xs bg-primary/20 text-primary border-none backdrop-blur-md">MANGA</span>
+                                <span class="md-chip h-8 px-3 text-xs bg-surface/30 text-on-surface border-none backdrop-blur-md">{{ selectedAlbum.album_id }}</span>
+                            </div>
+
+                            <!-- Title -->
+                            <h1 class="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-semibold text-on-surface leading-[1.08] tracking-tight line-clamp-2 text-shadow-sm">
+                                {{ selectedAlbum.title }}
+                            </h1>
+
+                            <!-- Metadata Row -->
+                            <div class="flex flex-wrap items-center gap-6 text-on-surface-variant/90 text-sm md:text-base font-medium">
+                                <div class="flex items-center gap-2">
+                                    <span class="material-symbols-rounded text-primary">person</span>
+                                    <span>{{ selectedAlbum.author }}</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="material-symbols-rounded text-primary">photo_library</span>
+                                    <span>{{ selectedAlbum.image_count }} 页</span>
+                                </div>
+                                 <div v-if="selectedAlbum.update_time" class="flex items-center gap-2">
+                                    <span class="material-symbols-rounded text-primary">update</span>
+                                    <span>{{ selectedAlbum.update_time }}</span>
+                                </div>
+                                <div v-if="getHistoryText(selectedAlbum.album_id)" class="flex items-center gap-2">
+                                    <span class="material-symbols-rounded text-primary">history</span>
+                                    <span class="truncate max-w-[420px]">{{ getHistoryText(selectedAlbum.album_id) }}</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Mobile Metadata (Below cover) -->
+                        <div class="md:hidden w-full flex flex-wrap items-center gap-x-6 gap-y-2 text-on-surface-variant/90 text-xs font-medium mt-[-1rem]">
+                            <div class="flex items-center gap-1.5">
+                                <span class="material-symbols-rounded text-primary text-base">person</span>
+                                <span class="truncate max-w-[120px]">{{ selectedAlbum.author }}</span>
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <span class="material-symbols-rounded text-primary text-base">photo_library</span>
+                                <span>{{ selectedAlbum.image_count }} 页</span>
+                            </div>
+                             <div v-if="selectedAlbum.update_time" class="flex items-center gap-1.5">
+                                <span class="material-symbols-rounded text-primary text-base">update</span>
+                                <span>{{ selectedAlbum.update_time }}</span>
+                            </div>
+                        </div>
+
+                        <!-- Main Action (Floating FAB-like) -->
+                        <button @click="startReading(selectedAlbum)"
+                            class="md-btn-primary w-full md:w-auto h-12 md:h-16 px-8 rounded-full shadow-xl shadow-primary/30 hover:shadow-primary/40 hover:-translate-y-1 transition-all text-base md:text-lg font-medium shrink-0 mb-2 flex items-center justify-center gap-2">
+                            <span class="material-symbols-rounded text-xl md:text-2xl">menu_book</span>
+                            {{ getHistoryText(selectedAlbum.album_id) ? '继续阅读' : '开始阅读' }}
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. Content Tabs & Body -->
+            <div class="max-w-[1600px] mx-auto px-4 md:px-8 lg:px-12 mt-6 md:mt-8">
+                <!-- Tab Navigation -->
+                <div class="flex items-center gap-2 mb-6 md:mb-8 overflow-x-auto no-scrollbar pb-2 mask-linear-x">
+                    <button @click="detailSubTab = 'content'"
+                        class="h-10 px-5 md:px-6 rounded-full text-sm font-medium transition-all relative whitespace-nowrap snap-start"
+                        :class="detailSubTab === 'content' ? 'text-primary bg-secondary-container/50 shadow-sm' : 'text-on-surface-variant hover:bg-surface-container-high'">
+                        内容
+                        <span class="ml-2 text-xs opacity-60 bg-surface-container px-2 py-0.5 rounded-full">{{ selectedAlbum.episode_list ? selectedAlbum.episode_list.length : 0 }}</span>
+                    </button>
+                    
+                    <button @click="detailSubTab = 'comments'"
+                        class="h-10 px-5 md:px-6 rounded-full text-sm font-medium transition-all relative whitespace-nowrap snap-start"
+                        :class="detailSubTab === 'comments' ? 'text-primary bg-secondary-container/50 shadow-sm' : 'text-on-surface-variant hover:bg-surface-container-high'">
+                        评论
+                         <span class="ml-2 text-xs opacity-60 bg-surface-container px-2 py-0.5 rounded-full">{{ commentTotal || 0 }}</span>
+                    </button>
+                </div>
+
+                <!-- Tab Contents -->
+                <div class="min-h-[500px]">
+                    <transition name="fade" mode="out-in">
+                        <div v-if="detailSubTab === 'content'" key="content" class="space-y-10">
+                            <section>
+                                <h3 class="title-large mb-4 text-on-surface flex items-center gap-2">
+                                    <span class="material-symbols-rounded text-primary">sell</span>
+                                    标签
+                                </h3>
+                                <div v-if="selectedAlbum.tags && selectedAlbum.tags.length" class="flex flex-wrap gap-3">
+                                    <button v-for="tag in selectedAlbum.tags" :key="tag" @click="searchByTag(tag)"
+                                        class="h-10 px-5 rounded-full bg-surface-container-low text-sm font-medium text-on-surface hover:bg-primary/10 hover:text-primary transition shadow-sm hover:shadow-md">
+                                        <span class="opacity-70 mr-1">#</span>{{ tag }}
+                                    </button>
+                                </div>
+                                <div v-else class="p-6 rounded-[24px] bg-surface-container-low text-on-surface-variant opacity-70 flex items-center gap-3">
+                                    <span class="material-symbols-rounded">label_off</span>
+                                    暂无标签
+                                </div>
+                            </section>
+
+                            <section>
+                                <h3 class="title-large mb-4 text-on-surface flex items-center gap-2">
+                                    <span class="material-symbols-rounded text-primary">description</span>
+                                    简介
+                                </h3>
+                                <div class="p-6 md:p-8 rounded-[32px] bg-surface-container-low text-body-large leading-loose text-on-surface-variant whitespace-pre-wrap ring-1 ring-outline-variant/10 shadow-sm">
+                                    {{ selectedAlbum.description || '暂无简介' }}
+                                </div>
+                            </section>
+
+                            <section class="space-y-6">
+                                <div class="flex items-center justify-between">
+                                    <h3 class="title-large text-on-surface flex items-center gap-2">
+                                        <span class="material-symbols-rounded text-primary">format_list_bulleted</span>
+                                        章节列表
+                                    </h3>
+                                    <div class="flex gap-2">
+                                        <button @click="toggleSelectionMode"
+                                            class="h-10 px-4 rounded-full border-none bg-surface-container-low text-sm font-medium hover:bg-surface-container-high transition flex items-center gap-2"
+                                            :class="isSelectionMode ? 'bg-secondary-container text-on-secondary-container' : 'text-on-surface-variant'">
+                                            <span class="material-symbols-rounded text-lg">{{ isSelectionMode ? 'close' : 'checklist' }}</span>
+                                            {{ isSelectionMode ? '取消' : '选择' }}
+                                        </button>
+                                        <button v-if="isSelectionMode" @click="selectAll" class="h-10 px-4 rounded-full bg-surface-container-high text-sm font-medium hover:bg-surface-container-highest transition">
+                                            全选
+                                        </button>
+                                        <button v-if="isSelectionMode" @click="downloadSelected" :disabled="selectedChapters.length === 0"
+                                            class="h-10 px-6 rounded-full bg-primary text-on-primary text-sm font-medium hover:shadow-md transition disabled:opacity-50 disabled:shadow-none">
+                                            下载 ({{ selectedChapters.length }})
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 md:gap-4">
+                                    <div v-for="ep in selectedAlbum.episode_list" :key="ep.id" 
+                                        class="p-4 rounded-[24px] bg-surface-container-low hover:bg-surface-container cursor-pointer transition-all duration-300 group flex items-center gap-4 relative overflow-hidden active:scale-[0.98]"
+                                        @click="handleChapterClick(ep)">
+                                        
+                                        <div class="w-12 h-12 shrink-0 rounded-full bg-surface-container-high text-primary flex items-center justify-center font-bold text-sm group-hover:bg-primary group-hover:text-on-primary transition-colors z-10">
+                                            {{ ep.title.match(/\d+/) ? ep.title.match(/\d+/)[0] : '#' }}
+                                        </div>
+                                        
+                                        <div class="flex-1 min-w-0 z-10">
+                                            <div class="truncate text-body-large font-medium text-on-surface group-hover:text-primary transition-colors">{{ ep.title }}</div>
+                                            <div class="text-xs text-on-surface-variant opacity-70 flex items-center gap-2">
+                                                <span v-if="ep.update_time">更新：{{ ep.update_time }}</span>
+                                                <span v-if="readingChapter && readingChapter.photo_id && String(readingChapter.photo_id) === String(ep.id)" class="text-primary font-bold">正在阅读</span>
+                                            </div>
+                                        </div>
+
+                                        <div v-if="isSelectionMode" class="w-8 h-8 rounded-full flex items-center justify-center transition-all z-10 ml-2"
+                                            :class="isSelected(ep.id) ? 'bg-primary text-on-primary shadow-sm scale-110' : 'bg-surface-container-highest text-transparent ring-1 ring-outline-variant/30'">
+                                            <span class="material-symbols-rounded text-lg">check</span>
+                                        </div>
+                                        <span v-else class="material-symbols-rounded text-outline-variant/50 group-hover:text-primary group-hover:translate-x-1 transition-transform z-10 ml-2">arrow_forward</span>
+                                    </div>
+                                </div>
+                            </section>
+
+                            <section class="space-y-6">
+                                <h3 class="title-large text-on-surface">相关作品</h3>
+                                <div v-if="alsoViewedLoading" class="flex justify-center py-12">
+                                    <div class="w-10 h-10 border-4 border-primary/30 border-t-primary rounded-full animate-spin"></div>
+                                </div>
+                                <div v-else-if="alsoViewedItems && alsoViewedItems.length" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    <div v-for="book in alsoViewedItems.slice(0, 6)" :key="book.album_id"
+                                        class="flex gap-4 p-4 rounded-[24px] bg-surface-container-low hover:bg-surface-container-high transition-colors cursor-pointer group"
+                                        @click="viewDetails(book.album_id)">
+                                        <div class="w-16 h-20 shrink-0 rounded-2xl overflow-hidden bg-surface-container-high relative">
+                                            <img v-if="book.image" :src="getImageUrl(book.image)" class="w-full h-full object-cover">
+                                        </div>
+                                        <div class="flex-1 min-w-0 flex flex-col justify-center">
+                                            <h4 class="font-bold text-sm line-clamp-2 leading-tight group-hover:text-primary transition-colors mb-1">{{ book.title }}</h4>
+                                            <p class="text-xs text-on-surface-variant">{{ book.author }}</p>
+                                        </div>
+                                        <span class="material-symbols-rounded text-outline-variant/60 group-hover:text-primary group-hover:translate-x-1 transition-transform self-center">chevron_right</span>
+                                    </div>
+                                </div>
+                                <div v-else class="p-6 rounded-[24px] bg-surface-container-low text-on-surface-variant opacity-70">
+                                    暂无相关推荐
+                                </div>
+                            </section>
+                        </div>
+
+                        <!-- Comments Tab -->
+                        <div v-else-if="detailSubTab === 'comments'" key="comments" class="max-w-3xl mx-auto animate-fade-in">
+                             <!-- Comment Tools -->
+                             <div class="flex items-center justify-between mb-6">
+                                <h3 class="title-large text-on-surface">讨论</h3>
+                                <div class="flex gap-2">
+                                     <button @click="toggleAllSpoilers" 
+                                        class="h-10 px-4 rounded-full bg-surface-container-low hover:bg-surface-container-high text-sm font-medium transition flex items-center gap-2"
+                                        :class="{'text-primary bg-primary/10': allSpoilersRevealed}">
+                                        <span class="material-symbols-rounded text-lg">{{ allSpoilersRevealed ? 'visibility' : 'visibility_off' }}</span>
+                                        {{ allSpoilersRevealed ? '显示剧透' : '隐藏剧透' }}
+                                    </button>
+                                     <button @click="fetchComments(commentPage)" :disabled="commentLoading"
+                                        class="h-10 w-10 rounded-full bg-surface-container-low hover:bg-surface-container-high flex items-center justify-center transition">
+                                        <span class="material-symbols-rounded text-lg" :class="{'animate-spin': commentLoading}">refresh</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Comment Input -->
+                             <div class="md-card p-6 rounded-[32px] bg-surface-container-low mb-8">
+                                <textarea v-model="commentText" rows="3" :disabled="commentSending || !isLoggedIn"
+                                    class="w-full bg-transparent outline-none text-base resize-none placeholder:text-on-surface-variant/50"
+                                    placeholder="写下你的评论..."></textarea>
+                                <div class="flex justify-between items-center mt-4 pt-4 border-t border-outline-variant/10">
+                                    <div v-if="commentReplyTo" class="text-xs bg-secondary-container text-on-secondary-container px-3 py-1 rounded-full flex items-center gap-2">
+                                        回复 #{{ commentReplyTo }}
+                                        <button @click="cancelReply" class="hover:bg-black/10 rounded-full p-0.5"><span class="material-symbols-rounded text-sm">close</span></button>
+                                    </div>
+                                    <div v-else></div>
+                                    
+                                    <button @click="sendComment" :disabled="commentSending || !isLoggedIn || !commentText.trim()"
+                                        class="md-btn-primary h-10 px-6 text-sm rounded-full shadow-none disabled:opacity-50">
+                                        发布
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <!-- Comment Tree -->
+                             <div v-if="commentLoading" class="flex justify-center py-12">
+                                <div class="w-10 h-10 border-4 border-primary/30 border-t-primary rounded-full animate-spin"></div>
+                            </div>
+                            <div v-else-if="commentItems.length === 0" class="text-center py-12 opacity-60">
+                                <p>暂无评论。</p>
+                            </div>
+                            <div v-else class="space-y-4">
+                                <comment-node v-for="c in commentTree" :key="c.CID" :node="c" :depth="0" 
+                                    :is-logged-in="isLoggedIn" :revealed-spoilers="revealedSpoilers" 
+                                    :liked-comments="likedCommentIds" :like-loading="commentLikeLoading" 
+                                    :get-avatar-url="getUserAvatarUrl" :strip-html="stripHtml" 
+                                    :all-spoilers-revealed="allSpoilersRevealed"
+                                    @reply="replyToComment" @toggle-spoiler="toggleSpoiler" @like="likeComment">
+                                </comment-node>
+                            </div>
+                            
+                            <!-- Pagination -->
+                            <pagination-controls 
+                                v-if="commentTotalPages > 1"
+                                :page="commentPage" 
+                                :loading="commentLoading" 
+                                :has-more="commentPage < commentTotalPages"
+                                @prev="fetchComments(commentPage - 1)" 
+                                @next="fetchComments(commentPage + 1)">
+                            </pagination-controls>
+                        </div>
+                    </transition>
+                </div>
+            </div>
+        </div>
+        <div v-else class="flex items-center justify-center min-h-[50vh]">
+            <div class="w-16 h-16 border-4 border-primary/30 border-t-primary rounded-full animate-spin"></div>
+        </div>
+    </div>
+</transition>

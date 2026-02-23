@@ -1,0 +1,453 @@
+    <!-- Config View -->
+    <transition name="fade" mode="out-in" v-cloak>
+        <div v-if="currentTab === 'config'" class="min-h-[80vh] w-full pb-24">
+            <div class="px-4 md:px-8 max-w-[1600px] mx-auto w-full py-8 md:py-12">
+                <div class="flex items-center gap-6 mb-8 md:mb-12">
+                    <div class="w-16 h-16 rounded-3xl bg-primary-container flex items-center justify-center text-on-primary-container shadow-sm">
+                        <span class="material-symbols-rounded text-4xl">manage_accounts</span>
+                    </div>
+                    <div class="min-w-0">
+                        <h2 class="text-4xl md:text-5xl font-normal tracking-tight text-on-surface">设置</h2>
+                        <p class="text-lg text-on-surface-variant font-light mt-1">偏好设置与账号管理</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8">
+                    <div class="lg:col-span-5 space-y-6 md:space-y-8">
+                        <div class="md-card p-6 md:p-8">
+                            <div class="flex items-center justify-between gap-3 mb-6">
+                                <div class="font-normal text-2xl flex items-center gap-3 text-on-surface">
+                                    <span class="material-symbols-rounded text-primary">palette</span>
+                                    外观
+                                </div>
+                            </div>
+
+                            <div class="space-y-4">
+                                <div class="flex items-center justify-between p-5 bg-surface-container rounded-[20px]">
+                                    <div class="flex items-center gap-4">
+                                        <div class="w-12 h-12 rounded-full bg-surface flex items-center justify-center text-primary shadow-sm">
+                                            <span class="material-symbols-rounded text-2xl">{{ isDark ? 'dark_mode' : 'light_mode' }}</span>
+                                        </div>
+                                        <div class="text-left">
+                                            <p class="font-bold text-base text-on-surface">主题模式</p>
+                                            <p class="text-xs text-on-surface-variant">{{ isDark ? '深色模式' : '浅色模式' }}</p>
+                                        </div>
+                                    </div>
+                                    <button @click="toggleTheme" class="md-btn-primary h-10 px-6 text-sm shadow-none bg-surface hover:bg-primary hover:text-on-primary transition-colors text-primary border-none">
+                                        切换
+                                    </button>
+                                </div>
+
+                                <div class="flex flex-col p-5 bg-surface-container rounded-[20px]">
+                                    <div class="flex items-center gap-4 mb-4">
+                                        <div class="w-12 h-12 rounded-full bg-surface flex items-center justify-center text-primary shadow-sm">
+                                            <span class="material-symbols-rounded text-2xl">colorize</span>
+                                        </div>
+                                        <div class="text-left">
+                                            <p class="font-bold text-base text-on-surface">主题色</p>
+                                            <p class="text-xs text-on-surface-variant">选择你的强调色</p>
+                                        </div>
+                                    </div>
+                                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                                        <button @click="setThemeColor('pink')" 
+                                            class="h-12 rounded-full flex items-center justify-center gap-2 text-sm font-medium transition active:scale-95"
+                                            :class="themeColor === 'pink' ? 'bg-[#9c4146] text-white shadow-md ring-2 ring-offset-2 ring-[#9c4146]/30' : 'bg-surface text-on-surface hover:bg-[#9c4146]/10'">
+                                            <span>哔咔粉</span>
+                                        </button>
+                                        <button @click="setThemeColor('orange')" 
+                                            class="h-12 rounded-full flex items-center justify-center gap-2 text-sm font-medium transition active:scale-95"
+                                            :class="themeColor === 'orange' ? 'bg-[#9E4900] text-white shadow-md ring-2 ring-offset-2 ring-[#9E4900]/30' : 'bg-surface text-on-surface hover:bg-[#9E4900]/10'">
+                                            <span>禁漫橙</span>
+                                        </button>
+                                        <button @click="setThemeColor('green')" 
+                                            class="h-12 rounded-full flex items-center justify-center gap-2 text-sm font-medium transition active:scale-95"
+                                            :class="themeColor === 'green' ? 'bg-[#006D4E] text-white shadow-md ring-2 ring-offset-2 ring-[#006D4E]/30' : 'bg-surface text-on-surface hover:bg-[#006D4E]/10'">
+                                            <span>EH绿</span>
+                                        </button>
+                                        <button @click="setThemeColor('yuuka')" 
+                                            class="h-12 rounded-full flex items-center justify-center gap-2 text-sm font-medium transition active:scale-95"
+                                            :class="themeColor === 'yuuka' ? 'bg-[#5A63FF] text-white shadow-md ring-2 ring-offset-2 ring-[#5A63FF]/30' : 'bg-surface text-on-surface hover:bg-[#5A63FF]/10'">
+                                            <span>优香蓝</span>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="md-card p-6 md:p-8">
+                            <div class="font-normal flex items-center gap-3 mb-6 text-2xl text-on-surface">
+                                <span class="material-symbols-rounded text-primary">database</span>
+                                数据
+                            </div>
+                            <div class="flex items-center justify-between p-5 bg-surface-container rounded-[20px]">
+                                <div class="flex items-center gap-4">
+                                    <div class="w-12 h-12 rounded-full bg-surface flex items-center justify-center text-primary shadow-sm">
+                                        <span class="material-symbols-rounded text-2xl">history</span>
+                                    </div>
+                                    <div class="text-left">
+                                        <p class="font-bold text-base text-on-surface">历史中心</p>
+                                        <p class="text-xs text-on-surface-variant">查看 JM / Aura 历史记录</p>
+                                    </div>
+                                </div>
+                                <button @click="currentTab='jm_history'" class="md-btn-primary h-10 px-6 text-sm shadow-none bg-surface hover:bg-primary hover:text-on-primary transition-colors text-primary border-none">
+                                    打开
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="md-card p-6 md:p-8">
+                            <div class="font-normal flex items-center gap-3 mb-6 text-2xl text-on-surface">
+                                <span class="material-symbols-rounded text-primary">info</span>
+                                关于
+                            </div>
+                            <div class="flex items-center justify-between gap-3 mb-4">
+                                <div class="flex items-center gap-4 min-w-0">
+                                    <div class="w-12 h-12 rounded-full bg-surface flex items-center justify-center text-primary shadow-sm">
+                                        <span class="material-symbols-rounded text-2xl">code</span>
+                                    </div>
+                                    <div class="text-left min-w-0">
+                                        <p class="font-bold text-base text-on-surface">JM-Aura</p>
+                                        <p class="text-xs text-on-surface-variant truncate">v1.3.0</p>
+                                    </div>
+                                </div>
+                                <a href="https://github.com/Tom6814/JM-Aura" target="_blank" rel="noopener noreferrer"
+                                   class="md-btn-primary h-10 px-6 text-sm shadow-none bg-surface hover:bg-primary hover:text-on-primary transition-colors text-primary border-none inline-flex">
+                                    GitHub
+                                </a>
+                            </div>
+                            <div class="p-4 rounded-[20px] bg-surface-container flex items-center justify-between gap-3">
+                                <div class="text-sm text-on-surface-variant font-medium">作者</div>
+                                <div class="font-bold text-on-surface">Tom6814</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="lg:col-span-7 space-y-6 md:space-y-8">
+                        <div class="md-card p-6 md:p-8">
+                            <div class="flex items-start justify-between gap-4 mb-6">
+                                <div class="min-w-0">
+                                    <div class="font-normal flex items-center gap-3 text-2xl text-on-surface">
+                                        <span class="material-symbols-rounded text-primary">account_circle</span>
+                                        账号与登录
+                                    </div>
+                                    <div class="text-sm text-on-surface-variant mt-1">
+                                        Aura 用于保存/同步与多账号；JM 用于平台登录/签到/官方收藏。
+                                    </div>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <button @click="cleanupCache" :disabled="cacheCleanupLoading"
+                                        class="w-12 h-12 rounded-full bg-surface-container text-on-surface-variant hover:bg-primary hover:text-on-primary transition disabled:opacity-40 flex items-center justify-center shadow-sm"
+                                        title="清理缓存">
+                                        <span class="material-symbols-rounded text-2xl" :class="cacheCleanupLoading ? 'animate-spin' : ''">delete_sweep</span>
+                                    </button>
+                                    <button @click="loadJmBindingStatus" :disabled="jmBindingLoading"
+                                        class="w-12 h-12 rounded-full bg-surface-container text-on-surface-variant hover:bg-primary hover:text-on-primary transition disabled:opacity-40 flex items-center justify-center shadow-sm"
+                                        title="刷新登录状态">
+                                        <span class="material-symbols-rounded text-2xl" :class="jmBindingLoading ? 'animate-spin' : ''">refresh</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="p-5 rounded-[24px] bg-surface-container-low">
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <div class="h-9 px-4 rounded-full bg-surface-container-high text-on-surface font-bold flex items-center gap-2">
+                                        <span class="material-symbols-rounded text-primary text-[18px]">shield_person</span>
+                                        Aura：{{ siteLoggedIn ? (siteUser || '已登录') : '未登录（访客）' }}
+                                    </div>
+                                    <div class="h-9 px-4 rounded-full bg-surface-container-high text-on-surface font-bold flex items-center gap-2">
+                                        <span class="material-symbols-rounded text-primary text-[18px]">login</span>
+                                        JM：{{ jmBinding?.jm_logged_in ? '已登录' : '未登录' }}
+                                    </div>
+                                    <button @click="currentTab='jm_favorites'" class="h-9 px-4 rounded-full bg-surface-container-high text-on-surface hover:bg-primary hover:text-on-primary transition font-bold flex items-center gap-2">
+                                        <span class="material-symbols-rounded text-[18px]">favorite</span>
+                                        收藏
+                                    </button>
+                                    <button @click="currentTab='jm_history'" class="h-9 px-4 rounded-full bg-surface-container-high text-on-surface hover:bg-primary hover:text-on-primary transition font-bold flex items-center gap-2">
+                                        <span class="material-symbols-rounded text-[18px]">history</span>
+                                        历史
+                                    </button>
+                                </div>
+                                <div class="mt-4 flex flex-wrap gap-2 text-sm">
+                                    <div class="h-9 px-4 rounded-full bg-surface-container-high text-on-surface font-bold flex items-center gap-2">
+                                        <span class="material-symbols-rounded text-primary text-[18px]">route</span>
+                                        1. 登录 Aura → 2. 登录/切换 JM → 3. 使用 Favs/历史
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="md-card p-6 md:p-8">
+                            <div class="font-normal flex items-center gap-3 mb-6 text-2xl text-on-surface">
+                                <span class="material-symbols-rounded text-primary">shield_person</span>
+                                Aura 账号
+                            </div>
+                            <div class="p-6 rounded-[28px] bg-surface-container">
+                                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                                    <div class="min-w-0">
+                                        <div class="font-bold text-on-surface flex items-center gap-2">
+                                            {{ siteLoggedIn ? (siteUser || '已登录') : '未登录（访客）' }}
+                                            <span class="h-6 px-2 rounded-full text-[11px] font-bold"
+                                                :class="siteLoggedIn ? 'bg-primary/10 text-primary' : 'bg-surface-container-highest text-on-surface-variant'">
+                                                {{ siteLoggedIn ? '已登录' : '访客' }}
+                                            </span>
+                                        </div>
+                                        <div class="text-sm text-on-surface-variant mt-1">
+                                            用于同步设置、保存 JM 凭据、多账号切换，以及 Aura 书架。
+                                        </div>
+                                    </div>
+                                    <div class="flex gap-2 justify-end">
+                                        <button v-if="!siteLoggedIn" @click="openSiteAuth('login')" class="h-11 px-5 rounded-full bg-primary text-on-primary hover:bg-primary/90 transition font-bold shadow-sm flex items-center gap-2">
+                                            <span class="material-symbols-rounded">login</span>
+                                            Aura登录
+                                        </button>
+                                        <button v-else @click="siteLogout" class="h-11 px-5 rounded-full bg-surface-container-high text-on-surface hover:bg-error hover:text-on-error transition font-bold shadow-sm flex items-center gap-2">
+                                            <span class="material-symbols-rounded">logout</span>
+                                            Aura 登出
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="mt-6 space-y-3">
+                                    <button @click="toggleAccountFeature('savePassword')" class="w-full text-left p-5 rounded-[20px] bg-surface hover:bg-surface-container-high transition group border-none shadow-sm hover:shadow-md">
+                                        <div class="flex items-center justify-between gap-4">
+                                            <div class="min-w-0">
+                                                <div class="font-bold text-on-surface group-hover:text-primary transition-colors">保存 JM 密码</div>
+                                                <div class="text-xs opacity-70 mt-1">用于自动重登与多账号切换（仅 Aura 登录时保存）</div>
+                                            </div>
+                                            <div class="h-8 px-4 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300"
+                                                 :class="accountFeatures?.savePassword ? 'bg-primary text-on-primary shadow-md scale-105' : 'bg-surface-container-highest text-on-surface-variant'">
+                                                {{ accountFeatures?.savePassword ? '开' : '关' }}
+                                            </div>
+                                        </div>
+                                    </button>
+                                    <button @click="toggleAccountFeature('autoLogin')" class="w-full text-left p-5 rounded-[20px] bg-surface hover:bg-surface-container-high transition group border-none shadow-sm hover:shadow-md">
+                                        <div class="flex items-center justify-between gap-4">
+                                            <div class="min-w-0">
+                                                <div class="font-bold text-on-surface group-hover:text-primary transition-colors">自动登录 JM</div>
+                                                <div class="text-xs opacity-70 mt-1">启动时自动重登（需要已保存 JM 凭据）</div>
+                                            </div>
+                                            <div class="h-8 px-4 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300"
+                                                 :class="accountFeatures?.autoLogin ? 'bg-primary text-on-primary shadow-md scale-105' : 'bg-surface-container-highest text-on-surface-variant'">
+                                                {{ accountFeatures?.autoLogin ? '开' : '关' }}
+                                            </div>
+                                        </div>
+                                    </button>
+                                    <button @click="toggleAccountFeature('autoCheckin')" class="w-full text-left p-5 rounded-[20px] bg-surface hover:bg-surface-container-high transition group border-none shadow-sm hover:shadow-md">
+                                        <div class="flex items-center justify-between gap-4">
+                                            <div class="min-w-0">
+                                                <div class="font-bold text-on-surface group-hover:text-primary transition-colors">自动签到 JM</div>
+                                                <div class="text-xs opacity-70 mt-1">JM 登录成功后自动签到</div>
+                                            </div>
+                                            <div class="h-8 px-4 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300"
+                                                 :class="accountFeatures?.autoCheckin ? 'bg-primary text-on-primary shadow-md scale-105' : 'bg-surface-container-highest text-on-surface-variant'">
+                                                {{ accountFeatures?.autoCheckin ? '开' : '关' }}
+                                            </div>
+                                        </div>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="md-card p-6 md:p-8">
+                            <div class="font-normal flex items-center gap-3 mb-6 text-2xl text-on-surface">
+                                <span class="material-symbols-rounded text-primary">manage_accounts</span>
+                                JM 多账号（Aura 专属）
+                            </div>
+                            <div v-if="!siteLoggedIn" class="p-6 rounded-[24px] bg-surface-container/50 text-sm text-on-surface-variant flex items-start gap-3">
+                                <span class="material-symbols-rounded text-primary text-xl mt-0.5">lock</span>
+                                <span>请先登录 Aura 账号后使用多账号管理。</span>
+                            </div>
+                            <div v-else class="p-6 rounded-[28px] bg-surface-container">
+                                <div class="flex items-start justify-between gap-4">
+                                    <div class="min-w-0">
+                                        <div class="font-bold text-on-surface">账号列表</div>
+                                        <div class="text-xs text-on-surface-variant mt-1">“已登录”表示该账号的 JM 登录态仍有效。</div>
+                                    </div>
+                                    <button @click="loadJmAccounts" :disabled="jmAccountsLoading" class="w-11 h-11 rounded-full bg-surface-container-high text-on-surface-variant hover:bg-primary hover:text-on-primary transition disabled:opacity-40 flex items-center justify-center shadow-sm">
+                                        <span class="material-symbols-rounded" :class="jmAccountsLoading ? 'animate-spin' : ''">refresh</span>
+                                    </button>
+                                </div>
+                                <div class="mt-5 space-y-3">
+                                    <div v-if="!jmAccounts?.accounts || jmAccounts.accounts.length === 0" class="p-4 rounded-[20px] bg-surface-container-low text-sm text-on-surface-variant">
+                                        暂无已绑定的 JM 账号。你可以先添加一个。
+                                    </div>
+                                    <div v-else class="space-y-2">
+                                        <div v-for="a in jmAccounts.accounts" :key="a.username" class="p-4 rounded-[20px] bg-surface-container-low flex items-center justify-between gap-3">
+                                            <div class="min-w-0">
+                                                <div class="font-bold text-on-surface truncate">{{ a.username }}</div>
+                                                <div class="text-xs mt-1"
+                                                    :class="a.logged_in ? 'text-primary' : (a.active ? 'text-on-surface' : 'text-on-surface-variant')">
+                                                    {{ a.logged_in ? '已登录' : (a.active ? '当前选择' : '未选择') }}
+                                                </div>
+                                            </div>
+                                            <div class="flex items-center gap-2 flex-shrink-0">
+                                                <button v-if="a.active && !a.logged_in" @click="a.has_password === false ? showToast('该账号未保存密码，请重新绑定', 'error') : switchJmAccount(a.username)"
+                                                    :disabled="!!jmAccountSwitching || a.has_password === false"
+                                                    class="h-9 px-4 rounded-full bg-primary text-on-primary hover:bg-primary/90 transition font-bold text-xs disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                                                    <span v-if="jmAccountSwitching === a.username" class="material-symbols-rounded text-[16px] animate-spin">progress_activity</span>
+                                                    登录
+                                                </button>
+                                                <button v-else-if="!a.active" @click="a.has_password === false ? showToast('该账号未保存密码，请重新绑定', 'error') : switchJmAccount(a.username)"
+                                                    :disabled="!!jmAccountSwitching || a.has_password === false"
+                                                    class="h-9 px-4 rounded-full bg-primary text-on-primary hover:bg-primary/90 transition font-bold text-xs disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2">
+                                                    <span v-if="jmAccountSwitching === a.username" class="material-symbols-rounded text-[16px] animate-spin">progress_activity</span>
+                                                    切换并登录
+                                                </button>
+                                                <button @click="removeJmAccount(a.username)" :disabled="!!jmAccountSwitching"
+                                                    class="h-9 px-4 rounded-full bg-surface-container-high text-on-surface hover:bg-error hover:text-on-error transition font-bold text-xs disabled:opacity-50 disabled:cursor-not-allowed">
+                                                    移除
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="flex flex-wrap gap-3 justify-end pt-1">
+                                        <button @click="openAddJmAccount" class="h-11 px-5 rounded-full bg-primary text-on-primary hover:bg-primary/90 transition font-bold shadow-sm flex items-center gap-2">
+                                            <span class="material-symbols-rounded">add</span>
+                                            添加 JM 账号
+                                        </button>
+                                    </div>
+                                    <div v-if="jmAddAccountOpen" class="mt-2 p-4 rounded-[20px] bg-surface-container-low">
+                                        <div class="space-y-3">
+                                            <div class="md-input-container flex items-center rounded-[20px] bg-surface-container-high ring-1 ring-outline-variant/10 focus-within:ring-primary/40 overflow-hidden">
+                                                <span class="material-symbols-rounded text-on-surface-variant ml-4">person</span>
+                                                <input v-model="jmAddUsername" type="text" placeholder="JM 用户名" class="md-input w-full px-4 py-3 bg-transparent font-medium outline-none placeholder:text-on-surface-variant/70">
+                                            </div>
+                                            <div class="md-input-container flex items-center rounded-[20px] bg-surface-container-high ring-1 ring-outline-variant/10 focus-within:ring-primary/40 overflow-hidden">
+                                                <span class="material-symbols-rounded text-on-surface-variant ml-4">lock</span>
+                                                <input v-model="jmAddPassword" type="password" placeholder="JM 密码" class="md-input w-full px-4 py-3 bg-transparent font-medium outline-none placeholder:text-on-surface-variant/70">
+                                            </div>
+                                            <div class="flex justify-end gap-3">
+                                                <button @click="openJmRegister(jmAddUsername)" class="h-10 px-5 rounded-full bg-surface-container-high hover:bg-surface-container transition font-medium text-on-surface flex items-center gap-2">
+                                                    <span class="material-symbols-rounded text-[18px]">person_add</span>
+                                                    注册 JM
+                                                </button>
+                                                <button @click="jmAddAccountOpen = false" class="h-10 px-5 rounded-full bg-surface-container-high hover:bg-surface-container transition font-medium text-on-surface">
+                                                    取消
+                                                </button>
+                                                <button @click="addJmAccount" :disabled="jmAddLoading" class="md-btn-primary h-10 px-6">
+                                                    {{ jmAddLoading ? '绑定中…' : '绑定并切换' }}
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="md-card p-6 md:p-8">
+                            <div class="font-normal flex items-center gap-3 mb-6 text-2xl text-on-surface">
+                                <span class="material-symbols-rounded text-primary">link</span>
+                                JM 平台账号
+                            </div>
+                            <div class="p-6 rounded-[28px] bg-surface-container">
+                                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                    <div class="p-4 rounded-[20px] bg-surface-container-low">
+                                        <div class="text-xs text-on-surface-variant font-medium uppercase tracking-wider mb-2">JM 登录态</div>
+                                        <div class="font-bold" :class="jmBinding?.jm_logged_in ? 'text-primary' : 'text-on-surface'">
+                                            {{ jmBinding?.jm_logged_in ? '已登录' : '未登录' }}
+                                        </div>
+                                        <div v-if="jmBinding?.jm_username" class="text-xs text-on-surface-variant mt-1 truncate">{{ jmBinding.jm_username }}</div>
+                                    </div>
+                                    <div class="p-4 rounded-[20px] bg-surface-container-low">
+                                        <div class="text-xs text-on-surface-variant font-medium uppercase tracking-wider mb-2">已保存凭据</div>
+                                        <div class="font-bold text-on-surface">{{ jmBinding?.has_saved_credentials ? '已保存' : '未保存' }}</div>
+                                        <div v-if="jmBinding?.saved_jm_username" class="text-xs text-on-surface-variant mt-1 truncate">{{ jmBinding.saved_jm_username }}</div>
+                                    </div>
+                                    <div class="p-4 rounded-[20px] bg-surface-container-low">
+                                        <div class="text-xs text-on-surface-variant font-medium uppercase tracking-wider mb-2">资料/签到</div>
+                                        <div class="font-bold text-on-surface">{{ isLoggedIn ? '可用' : '不可用' }}</div>
+                                    </div>
+                                </div>
+
+                                <div class="mt-5 flex flex-wrap gap-3 justify-end">
+                                    <button v-if="siteLoggedIn && isLoggedIn" @click="logout" class="h-11 px-5 rounded-full bg-surface-container-high text-on-surface hover:bg-error hover:text-on-error transition font-bold shadow-sm flex items-center gap-2">
+                                        <span class="material-symbols-rounded">logout</span>
+                                        退出 JM
+                                    </button>
+                                    <button v-if="siteLoggedIn && (jmBinding?.has_saved_credentials || jmAccounts?.accounts?.length)" @click="unbindJmAccount"
+                                        class="h-11 px-5 rounded-full bg-surface-container-high text-on-surface hover:bg-error hover:text-on-error transition font-bold shadow-sm flex items-center gap-2">
+                                        <span class="material-symbols-rounded">link_off</span>
+                                        清除 JM 绑定
+                                    </button>
+                                </div>
+                                <div v-if="siteLoggedIn && (jmBinding?.has_saved_credentials || jmAccounts?.accounts?.length)" class="mt-3 text-xs text-on-surface-variant leading-relaxed">
+                                    清除绑定会移除已保存的 JM 凭据，并清理所有已绑定账号的登录态/缓存。
+                                </div>
+                            </div>
+
+                            <div class="mt-6">
+                                <div v-if="isLoggedIn" class="space-y-4">
+                                    <div class="flex items-center justify-between gap-3">
+                                        <div class="font-bold text-on-surface">账号资料</div>
+                                        <button @click="loadAccountProfile" :disabled="accountProfileLoading || !isLoggedIn"
+                                            class="w-11 h-11 rounded-full bg-surface-container text-on-surface-variant hover:bg-primary hover:text-on-primary transition disabled:opacity-40 flex items-center justify-center shadow-sm">
+                                            <span class="material-symbols-rounded text-2xl" :class="accountProfileLoading ? 'animate-spin' : ''">refresh</span>
+                                        </button>
+                                    </div>
+                                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                                        <div class="p-5 rounded-[20px] bg-surface-container hover:bg-surface-container-high transition">
+                                            <div class="text-xs text-on-surface-variant font-medium uppercase tracking-wider mb-2">用户名</div>
+                                            <div class="font-bold text-base break-words text-on-surface">{{ accountProfile?.username || config.username }}</div>
+                                        </div>
+                                        <div class="p-5 rounded-[20px] bg-surface-container hover:bg-surface-container-high transition">
+                                            <div class="text-xs text-on-surface-variant font-medium uppercase tracking-wider mb-2">昵称</div>
+                                            <div class="font-bold text-base break-words text-on-surface">{{ accountProfile?.nickname || '-' }}</div>
+                                        </div>
+                                        <div class="p-5 rounded-[20px] bg-surface-container hover:bg-surface-container-high transition">
+                                            <div class="text-xs text-on-surface-variant font-medium uppercase tracking-wider mb-2">来源</div>
+                                            <div class="font-bold text-base break-words text-on-surface">{{ accountProfile?.source || 'jm' }}</div>
+                                        </div>
+                                    </div>
+                                    <div class="flex flex-wrap gap-3 justify-end pt-2">
+                                        <button @click="accountCheckin" class="h-12 px-6 rounded-full bg-surface-container-high text-on-surface hover:bg-primary hover:text-on-primary transition font-bold shadow-sm hover:shadow-md flex items-center gap-2">
+                                            <span class="material-symbols-rounded">task_alt</span>
+                                            签到
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div v-else-if="!siteLoggedIn" class="space-y-4">
+                                    <div class="p-6 rounded-[24px] bg-surface-container/50 text-sm text-on-surface-variant flex items-start gap-3">
+                                        <span class="material-symbols-rounded text-primary text-xl mt-0.5">lock</span>
+                                        <span>为保证隔离与安全，访客模式已禁用登录 JM。请先登录 Aura 账号。</span>
+                                    </div>
+                                    <button @click="openSiteAuth('login')" class="md-btn-primary w-full h-14 text-lg shadow-xl shadow-primary/20 hover:shadow-primary/30">
+                                        <span class="material-symbols-rounded mr-2">shield_person</span>
+                                        登录 Aura 账号
+                                    </button>
+                                </div>
+
+                                <div v-else class="space-y-6">
+                                    <transition name="fade">
+                                        <div v-if="loginMsg" :class="loginMsgType === 'error' ? 'bg-error/10 text-error' : 'bg-primary/10 text-primary'" class="p-4 rounded-2xl text-sm font-bold flex items-center gap-3">
+                                            <span class="material-symbols-rounded text-xl">{{ loginMsgType === 'error' ? 'error' : 'check_circle' }}</span>
+                                            {{ loginMsg }}
+                                        </div>
+                                    </transition>
+
+                                    <div class="space-y-4">
+                                        <div class="md-input-container flex items-center rounded-[20px] bg-surface-container-high hover:bg-surface-container-highest focus-within:!bg-surface-container-highest transition-all ring-1 ring-outline-variant/10 focus-within:ring-primary/40 shadow-sm hover:shadow-md overflow-hidden">
+                                            <span class="material-symbols-rounded text-on-surface-variant ml-4">person</span>
+                                            <input v-model="config.username" type="text" placeholder="JM 用户名" class="md-input w-full px-4 py-4 bg-transparent font-medium outline-none placeholder:text-on-surface-variant/70" @keyup.enter="saveConfig">
+                                        </div>
+                                        <div class="md-input-container flex items-center rounded-[20px] bg-surface-container-high hover:bg-surface-container-highest focus-within:!bg-surface-container-highest transition-all ring-1 ring-outline-variant/10 focus-within:ring-primary/40 shadow-sm hover:shadow-md overflow-hidden">
+                                            <span class="material-symbols-rounded text-on-surface-variant ml-4">lock</span>
+                                            <input v-model="config.password" type="password" placeholder="JM 密码" class="md-input w-full px-4 py-4 bg-transparent font-medium outline-none placeholder:text-on-surface-variant/70" @keyup.enter="saveConfig">
+                                        </div>
+                                    </div>
+                                    
+                                    <button @click="saveConfig" :disabled="loginLoading" class="md-btn-primary w-full h-14 text-lg shadow-xl shadow-primary/20 hover:shadow-primary/30 disabled:opacity-50 disabled:cursor-not-allowed">
+                                        <span v-if="loginLoading" class="material-symbols-rounded animate-spin mr-2">progress_activity</span>
+                                        <span v-else class="material-symbols-rounded mr-2">login</span>
+                                        {{ loginLoading ? '登录中...' : '登录 JM' }}
+                                    </button>
+                                    <button @click="openJmRegister" class="w-full h-12 rounded-full bg-surface-container-high text-on-surface hover:bg-surface-container transition font-bold shadow-sm flex items-center justify-center gap-2">
+                                        <span class="material-symbols-rounded">person_add</span>
+                                        注册 JM 账号
+                                    </button>
+                                </div>
+                            </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </transition>

@@ -1,0 +1,203 @@
+    <!-- Home View -->
+    <transition name="fade" mode="out-in" @after-enter="restoreHomeScroll" v-cloak>
+        <div v-if="currentTab === 'home'" class="space-y-12 pb-24">
+            <!-- Mobile Topbar (Hidden on Desktop) -->
+            <transition name="home-topbar">
+                <div v-if="homeTopbarVisible" class="fixed top-0 left-0 right-0 z-[120] pt-[env(safe-area-inset-top)] lg:hidden">
+                    <div class="mx-auto max-w-7xl px-4">
+                        <div class="mt-2 md-card border-0 bg-surface/80 backdrop-blur-xl shadow-sm">
+                            <div class="h-16 px-4 flex items-center justify-between gap-3">
+                                <div class="flex items-center gap-2 min-w-0">
+                                    <span class="material-symbols-rounded text-primary text-3xl">menu_book</span>
+                                    <div class="font-medium text-xl text-on-surface tracking-tight truncate">Aura</div>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <button type="button" @click="refreshHomeData"
+                                        class="w-10 h-10 rounded-full bg-surface-container-high text-on-surface-variant hover:bg-primary hover:text-on-primary transition disabled:opacity-40 flex items-center justify-center"
+                                        :disabled="homeRefreshing || homeLoading">
+                                        <span class="material-symbols-rounded" :class="{ 'animate-spin': homeRefreshing || homeLoading }">refresh</span>
+                                    </button>
+                                    
+                                    <!-- Mobile User Avatar -->
+                                    <div class="relative">
+                                        <button @click.stop="showUserMenu = !showUserMenu"
+                                            class="w-10 h-10 rounded-full bg-surface-container-high overflow-hidden hover:ring-2 hover:ring-primary/20 transition shadow-sm">
+                                            <img v-if="isLoggedIn && accountProfile && getUserAvatarUrl(accountProfile)" 
+                                                :src="getUserAvatarUrl(accountProfile)" class="w-full h-full object-cover">
+                                            <div v-else class="w-full h-full flex items-center justify-center text-on-surface-variant">
+                                                <span class="material-symbols-rounded">person</span>
+                                            </div>
+                                        </button>
+                                        
+                                        <!-- Dropdown Menu -->
+                                        <transition name="fade">
+                                            <div v-if="showUserMenu" class="absolute right-0 top-12 w-48 py-2 bg-surface-container-high rounded-2xl shadow-xl z-50 flex flex-col overflow-hidden border border-outline-variant/10">
+                                                <button @click="currentTab = 'jm_history'; showUserMenu = false" class="px-4 py-3 text-left hover:bg-surface-container-highest transition flex items-center gap-3 text-sm font-medium text-on-surface">
+                                                    <span class="material-symbols-rounded text-primary">history</span> History
+                                                </button>
+                                                <button @click="currentTab = 'jm_favorites'; showUserMenu = false" class="px-4 py-3 text-left hover:bg-surface-container-highest transition flex items-center gap-3 text-sm font-medium text-on-surface">
+                                                    <span class="material-symbols-rounded text-primary">favorite</span> Favorites
+                                                </button>
+                                                <button @click="currentTab = 'config'; showUserMenu = false" class="px-4 py-3 text-left hover:bg-surface-container-highest transition flex items-center gap-3 text-sm font-medium text-on-surface">
+                                                    <span class="material-symbols-rounded text-primary">settings</span> Settings
+                                                </button>
+                                                <div v-if="isLoggedIn" class="h-px bg-outline-variant/10 my-1"></div>
+                                                <button v-if="isLoggedIn" @click="logout(); showUserMenu = false" class="px-4 py-3 text-left hover:bg-error/10 text-error transition flex items-center gap-3 text-sm font-medium">
+                                                    <span class="material-symbols-rounded">logout</span> Sign Out
+                                                </button>
+                                            </div>
+                                        </transition>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </transition>
+
+            <!-- Hero Section -->
+            <div class="flex flex-col items-center gap-6 py-8 md:py-20 px-4">
+                <div class="text-center space-y-2">
+                    <h1 class="text-4xl md:text-7xl font-normal tracking-tighter text-on-surface">
+                        JM <span class="text-primary font-medium italic">Aura</span>
+                    </h1>
+                    <p class="text-on-surface-variant text-base md:text-xl font-light tracking-wide">
+                        Discover your next favorite story
+                    </p>
+                </div>
+
+                <div class="w-full max-w-3xl flex flex-wrap items-center justify-center gap-2 md:gap-3">
+                    <button v-if="source === 'jm'" type="button" @click="currentTab = 'jm_latest'"
+                        class="md-chip h-9 md:h-10 px-4 md:px-6 text-xs md:text-sm">
+                        <span class="material-symbols-rounded text-[18px] mr-2 text-primary">new_releases</span>
+                        Latest
+                    </button>
+                    <button v-if="source === 'jm'" type="button" @click="currentTab = 'jm_categories'"
+                        class="md-chip h-9 md:h-10 px-4 md:px-6 text-xs md:text-sm">
+                        <span class="material-symbols-rounded text-[18px] mr-2 text-primary">category</span>
+                        Categories
+                    </button>
+                    <button v-if="source === 'jm'" type="button" @click="currentTab = 'jm_leaderboard'"
+                        class="md-chip h-9 md:h-10 px-4 md:px-6 text-xs md:text-sm">
+                        <span class="material-symbols-rounded text-[18px] mr-2 text-primary">leaderboard</span>
+                        Rankings
+                    </button>
+                </div>
+                
+                <div class="flex items-center gap-4 text-xs font-medium text-on-surface-variant/70">
+                    <span v-if="homeLastUpdatedAt" class="flex items-center gap-1">
+                        Updated {{ formatTimeAgo(homeLastUpdatedAt) }}
+                    </span>
+                    <button type="button" @click="refreshHomeData"
+                        class="flex lg:hidden w-7 h-7 rounded-full bg-surface-container-high text-on-surface-variant hover:bg-primary hover:text-on-primary transition disabled:opacity-40 items-center justify-center"
+                        :disabled="homeRefreshing || homeLoading"
+                        title="Refresh Content">
+                        <span class="material-symbols-rounded text-[18px]" :class="{ 'animate-spin': homeRefreshing || homeLoading }">refresh</span>
+                    </button>
+                    <span v-if="!isOnline" class="px-2 py-0.5 rounded-full bg-error-container text-on-error-container">Offline</span>
+                    
+                    <!-- Desktop Refresh Button -->
+                    <button type="button" @click="refreshHomeData"
+                        class="hidden lg:flex w-8 h-8 rounded-full bg-surface-container-high text-on-surface-variant hover:bg-primary hover:text-on-primary transition disabled:opacity-40 items-center justify-center"
+                        :disabled="homeRefreshing || homeLoading"
+                        title="Refresh Content">
+                        <span class="material-symbols-rounded text-[18px]" :class="{ 'animate-spin': homeRefreshing || homeLoading }">refresh</span>
+                    </button>
+                    
+
+                </div>
+
+                <div v-if="homeError" class="w-full max-w-md md-card p-4 bg-error-container text-on-error-container flex items-start gap-3">
+                    <span class="material-symbols-rounded">error</span>
+                    <div>
+                        <div class="font-bold">Error loading content</div>
+                        <div class="text-sm opacity-90">{{ homeError }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Continue Reading (Horizontal Scroll) -->
+            <div v-if="source === 'jm' && jmLocalHistoryItems && jmLocalHistoryItems.length" class="space-y-6">
+                <div class="px-4 md:px-8 max-w-[1600px] mx-auto w-full">
+                    <h2 class="text-2xl font-normal text-on-surface flex items-center gap-2">
+                        <span class="material-symbols-rounded text-primary">resume</span>
+                        Continue Reading
+                    </h2>
+                </div>
+
+                <div class="flex gap-4 overflow-x-auto pb-4 px-4 md:px-8 snap-x snap-mandatory no-scrollbar">
+                    <div
+                        v-for="item in jmLocalHistoryItems.slice(0, 10)"
+                        :key="item.album_id"
+                        class="min-w-[300px] md-card p-0 border-0 bg-surface-container-low hover:bg-surface-container transition cursor-pointer snap-start flex overflow-hidden group"
+                        @click="viewDetails(item.album_id)"
+                    >
+                        <div class="w-24 shrink-0 relative aspect-[3/4] bg-surface-container-high overflow-hidden">
+                            <img :src="getCoverUrlByAlbumId(item.album_id)" class="w-full h-full object-cover" width="96" height="128" loading="lazy" decoding="async" :alt="item.album_title">
+                            <div class="absolute inset-0 bg-black/10"></div>
+                        </div>
+                        <div class="flex-1 p-4 flex flex-col justify-between">
+                            <div>
+                                <div class="font-bold text-base line-clamp-1 text-on-surface mb-1">{{ item.album_title }}</div>
+                                <div class="text-sm text-on-surface-variant line-clamp-1">{{ item.title }}</div>
+                            </div>
+                            <div class="flex items-center gap-2 mt-3">
+                                <button type="button" @click.stop="resumeFromHistory(item)"
+                                    class="md-btn-primary h-8 px-4 text-xs shadow-none">
+                                    Resume
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Main Content -->
+            <div v-if="homeLoading" class="flex flex-col items-center justify-center py-20 opacity-50">
+                <div class="w-16 h-16 border-4 border-primary/30 border-t-primary rounded-full animate-spin"></div>
+            </div>
+
+            <div v-else class="space-y-16 px-4 md:px-8 max-w-[1600px] mx-auto w-full">
+                <div v-for="category in homeData" :key="category.id" class="space-y-6">
+                    <h2 class="text-2xl font-normal text-on-surface flex items-center gap-3">
+                        <span class="w-1.5 h-6 bg-primary rounded-full"></span>
+                        {{ category.title }}
+                    </h2>
+                    
+                    <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7 gap-4 md:gap-6">
+                        <div v-for="book in category.content" :key="book.id" 
+                             class="md-card cursor-pointer group flex flex-col h-full"
+                             @click="viewDetails(book.id)">
+                            <div class="aspect-[3/4] overflow-hidden relative bg-surface-container-high">
+                                 <img :src="getCoverUrl(book)" class="w-full h-full object-cover transition-transform duration-700" loading="lazy" decoding="async" :alt="book.name">
+                                 
+                                 <!-- Gradient Overlay on Hover -->
+                                 <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-4">
+                                     <span class="w-12 h-12 rounded-full bg-primary text-on-primary flex items-center justify-center shadow-xl transform translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300 delay-100">
+                                        <span class="material-symbols-rounded">arrow_outward</span>
+                                     </span>
+                                 </div>
+                            </div>
+                            
+                            <div class="p-4 flex flex-col flex-1 gap-2">
+                                <h3 class="font-bold text-base line-clamp-2 leading-tight group-hover:text-primary transition-colors">{{ book.name }}</h3>
+                                <div class="mt-auto flex items-center justify-between opacity-70">
+                                    <p class="text-xs truncate max-w-[85%] text-on-surface-variant flex items-center gap-1">
+                                        {{ book.author }}
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Back to Top -->
+            <transition name="fade">
+                <button v-show="showBackToTop" @click="scrollToTop" 
+                    class="fixed bottom-24 right-6 md:bottom-10 md:right-10 z-40 w-14 h-14 rounded-full bg-primary-container text-on-primary-container shadow-xl flex items-center justify-center hover:scale-110 transition-transform border border-primary/10">
+                    <span class="material-symbols-rounded text-3xl">arrow_upward</span>
+                </button>
+            </transition>
+        </div>
+    </transition>
