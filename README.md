@@ -2,7 +2,7 @@
   <img src="https://github.com/user-attachments/assets/11a2cb7d-f8c1-49a1-a8e8-719927045cdb" alt="JM-Aura" width="230" height="230" />
 
   <h1><i>JM-Aura</i></h1>
-  <p><i>一个简洁、优雅的 JMComic 漫画阅读/下载 Web 应用</i></p>
+  <p><i>一个简洁、优雅的 JMComic/禁漫天堂 漫画阅读/下载 Web 应用</i></p>
 
   [![GitHub](https://img.shields.io/badge/-GitHub-181717?logo=github)](https://github.com/Tom6814)
   [![GitHub license](https://img.shields.io/github/license/Tom6814/JM-Aura)](https://github.com/Tom6814/JM-Aura/blob/master/LICENSE)
