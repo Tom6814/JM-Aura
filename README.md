@@ -73,7 +73,7 @@
   
 - 接下来的配置界面，**Name**部分随便填，**Language**选择*Python3*，**Region**选择一个离自己位置近的服务器【大陆建议选Singapore (Southeast Asia)】
   
-- 启动命令填入`pip install -r requirements.txt requests && python3 -m uvicorn backend.main:app --host 0.0.0.0 --port 8000`，**Instance Type**选择*Free*，最后点击**Deploy web service**
+- 启动命令填入`pip install -r requirements.txt && python3 -m uvicorn backend.main:app --host 0.0.0.0 --port 8000`，**Instance Type**选择*Free*，最后点击**Deploy web service**
   
 - 等待部署完成后访问`https://<你设置的Render项目名称>.onrender.com`
   
