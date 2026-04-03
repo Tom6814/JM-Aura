@@ -1,0 +1,26 @@
+<h2>对于超大本子和磁盘管理，您希望采用哪种处理方式？</h2>
+<p class="subtitle">漫画文件可能会非常大，如果不加以管理会很快耗尽服务器的磁盘空间。</p>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>定期自动清理 + ZIP打包 (推荐)</h3>
+      <p>依然将下载的内容打包为ZIP供用户下载，但增加配置：成功下载后立即删除，或者配置保留时间（如24小时后自动清理），并在UI中显示磁盘空间占用情况。</p>
+    </div>
+  </div>
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>分卷打包</h3>
+      <p>如果本子超过一定大小（如500MB），则自动拆分为多个ZIP包（如part1, part2），防止生成巨大的单文件导致打包失败或下载中断。</p>
+    </div>
+  </div>
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>直接挂载/不打包</h3>
+      <p>不将下载的图片打包为ZIP，而是直接保存在服务器目录中，由前端直接读取或提供在线阅读，并提供专门的删除按钮管理存储空间。</p>
+    </div>
+  </div>
+</div>
