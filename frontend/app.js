@@ -18,7 +18,7 @@ const DescrambledImage = {
                     图片加载失败
                 </div>
                 <button @click.stop="retry"
-                    class="h-10 px-5 rounded-full bg-primary text-on-primary hover:brightness-110 transition font-bold shadow-lg shadow-primary/20">
+                    class="h-10 px-5 rounded-full bg-primary text-on-primary hover:brightness-110 transition-all duration-300 font-bold shadow-lg shadow-primary/20 hover:scale-105 hover:-translate-y-1 active:scale-95">
                     重新加载该图片
                 </button>
             </div>
@@ -41,11 +41,13 @@ const DescrambledImage = {
             needDescramble: false,
             loadingStarted: false,
             loadToken: 0,
-            imgKey: 0
+            imgKey: 0,
+            objectUrl: null
         }
     },
     computed: {
         displaySrc() {
+            if (this.objectUrl) return this.objectUrl;
             const src = String(this.src || '');
             if (!src) return '';
             if (!this.imgKey) return src;
@@ -55,6 +57,12 @@ const DescrambledImage = {
     },
     mounted() {
         this.checkLoad();
+    },
+    unmounted() {
+        if (this.objectUrl) {
+            URL.revokeObjectURL(this.objectUrl);
+            this.objectUrl = null;
+        }
     },
     watch: {
         src() {
@@ -134,9 +142,12 @@ const DescrambledImage = {
             
             img.onload = () => {
                 if (myToken !== this.loadToken) return;
-                this.cutImage(img, sliceCount);
-                this.state = 'done';
-                this.onFinish();
+                if (this.needDescramble) {
+                    this.cutImage(img, sliceCount);
+                } else {
+                    this.state = 'done';
+                    this.onFinish();
+                }
             };
             
             img.onerror = () => {
@@ -201,8 +212,17 @@ const DescrambledImage = {
                 context.drawImage(image, 0, start, width, sliceH, 0, destY, width, sliceH);
                 destY += sliceH;
             }
-            
-            canvas.style.display = 'block';
+
+            canvas.toBlob(blob => {
+                if (this.objectUrl) {
+                    URL.revokeObjectURL(this.objectUrl);
+                }
+                this.objectUrl = URL.createObjectURL(blob);
+                this.needDescramble = false; // Trigger <img> to render with objectUrl
+                canvas.width = 0;
+                canvas.height = 0;
+                canvas.style.display = 'none';
+            }, 'image/jpeg', 0.9);
         }
     }
 }

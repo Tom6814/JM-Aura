@@ -100,10 +100,8 @@ download:
                 config['client'] = {}
 
             client_cfg = config.get('client', {}) if isinstance(config.get('client', {}), dict) else {}
-            if 'username' in client_cfg:
-                client_cfg.pop('username', None)
-            if 'password' in client_cfg:
-                client_cfg.pop('password', None)
+            client_cfg['username'] = username
+            client_cfg['password'] = password
             config['client'] = client_cfg
             
             with open(self.config_path, 'w', encoding='utf-8') as f:
@@ -127,7 +125,7 @@ download:
                     client_config = config.get('client', {})
                     return {
                         "username": str(client_config.get('username', '') or ''),
-                        "is_logged_in": False
+                        "is_logged_in": bool(client_config.get('username') and client_config.get('password'))
                     }
             return {"username": "", "is_logged_in": False}
         except Exception as e:
@@ -135,6 +133,15 @@ download:
             return {"username": "", "is_logged_in": False}
 
     def get_credentials(self) -> tuple[str, str]:
+        try:
+            import yaml
+            if os.path.exists(self.config_path):
+                with open(self.config_path, 'r', encoding='utf-8') as f:
+                    config = yaml.safe_load(f) or {}
+                    client_config = config.get('client', {})
+                    return str(client_config.get('username', '')), str(client_config.get('password', ''))
+        except Exception:
+            pass
         return "", ""
 
     def get_client(self) -> JmHtmlClient:
