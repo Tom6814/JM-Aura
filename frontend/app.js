@@ -618,6 +618,20 @@ createApp({
             searchQuery: '',
             showUserMenu: false,
             showDetailActionMenu: false,
+            
+            // 下载管理相关
+            downloadTasks: [],
+            diskInfo: {
+                downloads_size_bytes: 0,
+                disk_total_bytes: 0,
+                disk_free_bytes: 0,
+                disk_used_bytes: 0,
+                percent_used: 0
+            },
+            downloadTasksLoading: false,
+            downloadTasksError: '',
+            downloadTasksTimer: null,
+            
             topbarSearchQuery: '',
             topbarOverflowIds: [],
             topbarOverflowOpen: false,
@@ -941,6 +955,7 @@ createApp({
             clearInterval(this.jmFavSyncTimer);
             this.jmFavSyncTimer = null;
         }
+        this.stopDownloadTasksPolling();
     },
     watch: {
         currentTab(newVal, oldVal) {
@@ -982,6 +997,11 @@ createApp({
                 this.loadJmCategories();
                 this.jmLatestHasMore = true;
                 this.loadJmLatest(1, false);
+            }
+            if (newVal === 'downloads') {
+                this.startDownloadTasksPolling();
+            } else {
+                this.stopDownloadTasksPolling();
             }
             if (newVal === 'jm_categories') {
                 this.loadJmCategories();
@@ -2506,6 +2526,71 @@ createApp({
                 this.jmCategoryLoading = false;
             }
         },
+        
+        // --- 下载管理相关方法 ---
+        async loadDownloadTasks() {
+            if (!this.siteLoggedIn) return;
+            this.downloadTasksLoading = true;
+            this.downloadTasksError = '';
+            try {
+                const res = await fetch('/api/download/tasks');
+                if (res.status === 401) {
+                    throw new Error('未登录');
+                }
+                const json = await res.json().catch(() => ({}));
+                if (!res.ok || (json.st && json.st !== 1001 && json.st !== 0)) {
+                    throw new Error(json.msg || json.detail || 'Failed to load download tasks');
+                }
+                const data = json.data || json;
+                if (data.tasks) {
+                    this.downloadTasks = data.tasks;
+                    this.diskInfo = data.disk_info || this.diskInfo;
+                } else {
+                    this.downloadTasks = Array.isArray(data) ? data : [];
+                }
+            } catch (e) {
+                this.downloadTasksError = String(e.message || '加载下载任务失败');
+            } finally {
+                this.downloadTasksLoading = false;
+            }
+        },
+        startDownloadTasksPolling() {
+            if (this.downloadTasksTimer) {
+                clearInterval(this.downloadTasksTimer);
+            }
+            this.loadDownloadTasks();
+            this.downloadTasksTimer = setInterval(() => {
+                if (this.currentTab === 'downloads') {
+                    this.loadDownloadTasks();
+                }
+            }, 3000);
+        },
+        stopDownloadTasksPolling() {
+            if (this.downloadTasksTimer) {
+                clearInterval(this.downloadTasksTimer);
+                this.downloadTasksTimer = null;
+            }
+        },
+        formatBytes(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        },
+        async deleteDownloadTask(taskId) {
+            this.askConfirm('删除任务', '确定要删除此下载任务及相关文件吗？', async () => {
+                try {
+                    const res = await fetch(`/api/download/tasks/${taskId}`, { method: 'DELETE' });
+                    if (!res.ok) throw new Error('Delete failed');
+                    this.showToast('任务已删除', 'success');
+                    this.loadDownloadTasks();
+                } catch (e) {
+                    this.showToast('删除失败: ' + e.message, 'error');
+                }
+            });
+        },
+        
         async jmSearchInCategory() {
             const q = (this.jmCategoryKeyword || '').trim();
             if (!q) return;
