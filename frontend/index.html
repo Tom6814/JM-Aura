@@ -606,6 +606,11 @@
                 box-shadow 0.22s cubic-bezier(0.2, 0, 0, 1);
         }
 
+        .user-menu-action:hover {
+            background-color: var(--md-sys-color-surface-container-highest);
+            transform: translateX(4px);
+        }
+
         .user-menu-action:active {
             transform: scale(0.99);
         }
@@ -643,8 +648,8 @@
 
         @media (hover: hover) and (pointer: fine) {
             .media-card:hover {
-                transform: translateY(-1px);
-                box-shadow: var(--md-sys-elevation-1);
+                transform: translateY(-4px) scale(1.01);
+                box-shadow: var(--md-sys-elevation-3);
                 background-color: var(--md-sys-color-surface-container-low);
             }
 
@@ -679,8 +684,8 @@
             }
 
             .media-card-list:hover {
-                transform: translateY(-1px);
-                box-shadow: var(--md-sys-elevation-1);
+                transform: translateY(-2px) scale(1.01);
+                box-shadow: var(--md-sys-elevation-2);
             }
 
             .media-card-list:hover::before {
@@ -723,8 +728,9 @@
         }
         
         .md-btn-primary:hover {
-            box-shadow: var(--md-sys-elevation-2);
-            background-image: linear-gradient(rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.08));
+            box-shadow: var(--md-sys-elevation-3);
+            transform: translateY(-2px);
+            background-image: linear-gradient(rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.12));
         }
         
         .md-btn-primary:active {
@@ -758,8 +764,9 @@
 
         @media (hover: hover) and (pointer: fine) {
             .md-icon-btn:hover {
-                transform: translateY(-1px);
-                box-shadow: var(--md-sys-elevation-2);
+                transform: translateY(-2px) scale(1.05);
+                box-shadow: var(--md-sys-elevation-3);
+                background-color: color-mix(in srgb, var(--md-sys-color-primary) 8%, transparent);
             }
         }
 
@@ -809,8 +816,9 @@
         }
 
         .md-btn-tonal:hover {
-            box-shadow: var(--md-sys-elevation-1);
-            background-image: linear-gradient(rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.08));
+            box-shadow: var(--md-sys-elevation-2);
+            transform: translateY(-2px);
+            background-image: linear-gradient(rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.12));
         }
 
         .detail-hero-icon-btn {

@@ -130,6 +130,7 @@ def _download_one_image(photo_id: str, image_name: str, domain: str | None) -> t
 @dataclass
 class DownloadTask:
     task_id: str
+    user_id: str
     album_id: str
     album_title: str
     chapters: list[dict[str, str]]
@@ -151,6 +152,7 @@ class DownloadTask:
             download_url = f"{base_url}/api/download/tasks/{self.task_id}/download"
         return {
             "task_id": self.task_id,
+            "user_id": self.user_id,
             "album_id": self.album_id,
             "album_title": self.album_title,
             "status": self.status,
@@ -174,10 +176,77 @@ class DownloadTaskManager:
         self._queue: Queue[str] = Queue()
         self._worker = threading.Thread(target=self._run, daemon=True)
         self._worker.start()
+        self._cleanup_worker = threading.Thread(target=self._cleanup_loop, daemon=True)
+        self._cleanup_worker.start()
 
-    def create_task(self, album_id: str, album_title: str, chapters: list[dict[str, str]]) -> DownloadTask:
+    def _cleanup_loop(self) -> None:
+        """后台线程：定期清理过期任务(如24小时前的已完成/失败任务)"""
+        while True:
+            try:
+                time.sleep(3600)  # 每小时检查一次
+                now = time.time()
+                to_delete = []
+                with self._lock:
+                    for task_id, t in self._tasks.items():
+                        # 清理超过24小时(86400秒)的已完成或失败任务
+                        if t.status in ["completed", "failed"] and (now - t.updated_at > 86400):
+                            to_delete.append(task_id)
+                
+                for tid in to_delete:
+                    self.delete_task(tid)
+            except Exception:
+                pass
+
+    def delete_task(self, task_id: str) -> bool:
+        """删除任务并清理相关文件"""
+        with self._lock:
+            t = self._tasks.get(task_id)
+            if not t:
+                return False
+            
+            # 停止追踪该任务
+            del self._tasks[task_id]
+            
+        # 清理文件 (无锁执行)
+        try:
+            task_dir = os.path.join(self.base_dir, task_id)
+            if os.path.exists(task_dir):
+                shutil.rmtree(task_dir, ignore_errors=True)
+        except Exception:
+            pass
+        return True
+
+    def get_disk_usage(self) -> dict[str, Any]:
+        """获取下载目录磁盘占用情况"""
+        total_size = 0
+        try:
+            for dirpath, _, filenames in os.walk(self.base_dir):
+                for f in filenames:
+                    fp = os.path.join(dirpath, f)
+                    if not os.path.islink(fp):
+                        total_size += os.path.getsize(fp)
+                        
+            # 获取所在分区的总空间和剩余空间
+            total, used, free = shutil.disk_usage(self.base_dir)
+            return {
+                "downloads_size_bytes": total_size,
+                "disk_total_bytes": total,
+                "disk_free_bytes": free,
+                "disk_used_bytes": used,
+                "percent_used": round(used / total * 100, 2) if total > 0 else 0
+            }
+        except Exception:
+            return {
+                "downloads_size_bytes": total_size,
+                "disk_total_bytes": 0,
+                "disk_free_bytes": 0,
+                "disk_used_bytes": 0,
+                "percent_used": 0
+            }
+
+    def create_task(self, user_id: str, album_id: str, album_title: str, chapters: list[dict[str, str]]) -> DownloadTask:
         task_id = str(uuid.uuid4())
-        t = DownloadTask(task_id=task_id, album_id=str(album_id), album_title=str(album_title or ""), chapters=chapters)
+        t = DownloadTask(task_id=task_id, user_id=str(user_id), album_id=str(album_id), album_title=str(album_title or ""), chapters=chapters)
         with self._lock:
             self._tasks[task_id] = t
         self._queue.put(task_id)
@@ -186,6 +255,10 @@ class DownloadTaskManager:
     def get_task(self, task_id: str) -> DownloadTask | None:
         with self._lock:
             return self._tasks.get(task_id)
+
+    def get_tasks_by_user(self, user_id: str) -> list[DownloadTask]:
+        with self._lock:
+            return [t for t in self._tasks.values() if t.user_id == str(user_id)]
 
     def _update(self, task_id: str, **kwargs: Any) -> None:
         with self._lock:
@@ -242,7 +315,9 @@ class DownloadTaskManager:
         if not chapters:
             raise Exception("No chapters selected")
 
-        self._update(task_id, status="downloading", stage="downloading", message="Downloading...", downloaded_images=0, total_images=0, percent=0.0)
+        # 保留原有的已下载数量，用于断点续传的UI显示计算
+        start_downloaded = t.downloaded_images
+        self._update(task_id, status="downloading", stage="downloading", message="Downloading...", percent=self._calc_percent(t))
 
         chapter_meta: list[tuple[str, str, str, int, list[str]]] = []
         total_images = 0
@@ -251,7 +326,21 @@ class DownloadTaskManager:
             title = str(c.get("title") or "").strip() or photo_id
             if not photo_id:
                 continue
-            ch = jm_service.get_chapter_detail(photo_id)
+            
+            # 这里也加个重试，防止获取章节详情失败
+            ch = None
+            for retry_count in range(3):
+                try:
+                    ch = jm_service.get_chapter_detail(photo_id)
+                    break
+                except Exception as e:
+                    if retry_count == 2:
+                        raise Exception(f"Failed to get chapter detail {photo_id}: {e}")
+                    time.sleep(1.5)
+            
+            if not ch:
+                continue
+                
             scramble_id = int(ch.get("scramble_id") or 220980)
             if scramble_id <= 0:
                 scramble_id = 220980
@@ -265,6 +354,7 @@ class DownloadTaskManager:
         if total_images <= 0:
             raise Exception("No images found for selected chapters")
 
+        # 避免重置 total_images 导致UI进度条回退
         self._update(task_id, total_images=total_images, message="Downloading images...", percent=self._calc_percent(self.get_task(task_id) or t))
 
         downloaded = 0
@@ -273,14 +363,38 @@ class DownloadTaskManager:
             os.makedirs(chapter_folder, exist_ok=True)
             eps_id = int(photo_id)
             for img_name in img_names:
-                is_gif = img_name.lower().endswith(".gif")
-                raw_bytes, _host = _download_one_image(photo_id, img_name, domain or None)
-                pic_name = img_name.split(".", 1)[0]
-                try:
-                    out_bytes = _decode_image_bytes(raw_bytes, eps_id=eps_id, scramble_id=scramble_id, picture_name=pic_name, is_gif=is_gif)
-                except Exception:
-                    out_bytes = raw_bytes
                 out_path = os.path.join(chapter_folder, img_name)
+                is_gif = img_name.lower().endswith(".gif")
+                
+                # 断点续传检查
+                if os.path.exists(out_path) and os.path.getsize(out_path) > 0:
+                    downloaded += 1
+                    # 避免频繁更新数据库，只在10的倍数更新
+                    if downloaded % 10 == 0:
+                        self._update(task_id, downloaded_images=downloaded, percent=self._calc_percent(self.get_task(task_id) or t))
+                    continue
+                
+                # 带重试机制的单图下载
+                max_retries = 3
+                out_bytes = None
+                last_err = None
+                
+                for retry in range(max_retries):
+                    try:
+                        raw_bytes, _host = _download_one_image(photo_id, img_name, domain or None)
+                        pic_name = img_name.split(".", 1)[0]
+                        try:
+                            out_bytes = _decode_image_bytes(raw_bytes, eps_id=eps_id, scramble_id=scramble_id, picture_name=pic_name, is_gif=is_gif)
+                        except Exception:
+                            out_bytes = raw_bytes
+                        break
+                    except Exception as e:
+                        last_err = e
+                        time.sleep(1 * (retry + 1))  # 退避重试
+                        
+                if not out_bytes:
+                    raise Exception(f"Failed to download image after {max_retries} retries: {img_name}. Error: {last_err}")
+
                 with open(out_path, "wb") as f:
                     f.write(out_bytes)
                 downloaded += 1

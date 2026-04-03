@@ -3,8 +3,8 @@
     v-if="currentTab !== 'reader'"
     class="fixed bottom-0 left-0 w-full z-50 lg:top-0 lg:bottom-auto lg:h-20 lg:z-[240] transition-all duration-300"
     :class="[
-        currentTab === 'home' && homeTopbarVisible ? 'bg-surface/80 backdrop-blur-md shadow-sm' : 'bg-surface/0',
-        'lg:bg-surface'
+        currentTab === 'home' && homeTopbarVisible ? 'bg-surface/75 backdrop-blur-2xl border-b border-surface-variant/30 shadow-sm' : 'bg-surface/0 border-b border-transparent',
+        'lg:bg-surface/80 lg:backdrop-blur-2xl lg:border-b lg:border-surface-variant/30'
     ]"
     data-topbar-root="1"
 >
@@ -151,7 +151,7 @@
                             <button
                                 v-if="!siteLoggedIn"
                                 @click="openSiteAuth('login'); showUserMenu = false"
-                                class="w-full h-11 rounded-full transition font-medium bg-primary text-on-primary hover:bg-primary/90"
+                                class="w-full h-11 rounded-full transition-all duration-300 font-medium bg-primary text-on-primary hover:bg-primary/90 hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.98]"
                             >
                                 Aura 登录/注册
                             </button>
@@ -198,10 +198,19 @@
                                 <div class="user-menu-action-icon group-hover:bg-secondary/10 group-hover:text-secondary group-hover:-translate-y-0.5 group-hover:scale-[1.03]">
                                     <span class="material-symbols-rounded">favorite</span>
                                 </div>
-                                <span class="user-menu-action-label group-hover:text-secondary group-hover:translate-x-0.5">收藏夹</span>
+                                <span class="user-menu-action-label group-hover:text-secondary group-hover:translate-x-0.5">我的收藏</span>
                                 <span class="user-menu-action-chevron material-symbols-rounded text-on-surface-variant/50 text-lg group-hover:translate-x-1 group-hover:text-secondary">chevron_right</span>
                                 <div class="absolute inset-0 bg-secondary/5 opacity-0 group-active:opacity-100 transition-opacity pointer-events-none"></div>
                             </button>
+                            <button @click="currentTab = 'downloads'; showUserMenu = false" class="user-menu-action hover:bg-primary/5 active:bg-primary/10 text-sm font-medium text-on-surface group">
+                                <div class="user-menu-action-icon group-hover:bg-primary/10 group-hover:text-primary group-hover:-translate-y-0.5 group-hover:scale-[1.03]">
+                                    <span class="material-symbols-rounded">download</span>
+                                </div>
+                                <span class="user-menu-action-label group-hover:text-primary group-hover:translate-x-0.5">下载管理</span>
+                                <span class="user-menu-action-chevron material-symbols-rounded text-on-surface-variant/50 text-lg group-hover:translate-x-1 group-hover:text-primary">chevron_right</span>
+                                <div class="absolute inset-0 bg-primary/5 opacity-0 group-active:opacity-100 transition-opacity pointer-events-none"></div>
+                            </button>
+                            <div class="h-px bg-outline-variant/20 mx-2 my-1"></div>
                             <button @click="currentTab = 'config'; showUserMenu = false" class="user-menu-action hover:bg-primary/5 active:bg-primary/10 text-sm font-medium text-on-surface group">
                                 <div class="user-menu-action-icon group-hover:bg-primary/10 group-hover:text-primary group-hover:-translate-y-0.5 group-hover:scale-[1.03]">
                                     <span class="material-symbols-rounded">settings</span>
@@ -242,8 +251,8 @@
                 </button>
             </div>
             <div class="flex gap-2 mb-5 p-1 bg-surface-container-high rounded-full">
-                <button @click="siteAuthMode = 'login'" class="h-10 flex-1 rounded-full transition font-medium" :class="siteAuthMode === 'login' ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface'">登录</button>
-                <button @click="siteAuthMode = 'register'" class="h-10 flex-1 rounded-full transition font-medium" :class="siteAuthMode === 'register' ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface'">注册</button>
+                <button @click="siteAuthMode = 'login'" class="h-10 flex-1 rounded-full transition-all duration-300 font-medium" :class="siteAuthMode === 'login' ? 'bg-primary text-on-primary shadow-md scale-[1.02]' : 'text-on-surface hover:bg-surface-variant/50'">登录</button>
+                <button @click="siteAuthMode = 'register'" class="h-10 flex-1 rounded-full transition-all duration-300 font-medium" :class="siteAuthMode === 'register' ? 'bg-primary text-on-primary shadow-md scale-[1.02]' : 'text-on-surface hover:bg-surface-variant/50'">注册</button>
             </div>
             <div class="space-y-3">
                 <label class="block">

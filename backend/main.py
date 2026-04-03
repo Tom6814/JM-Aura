@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import os
+import sys
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from dotenv import load_dotenv
 load_dotenv()
 import copy
@@ -2071,30 +2074,84 @@ async def download_album(req: DownloadRequest):
 
 
 @app.post("/api/download/tasks")
-def create_download_task(req: DownloadTaskCreateRequest):
+def create_download_task(req: DownloadTaskCreateRequest, request: Request):
+    u = get_site_user(request)
+    if not u:
+        return JSONResponse(err(Status.NotLogin, "Not authenticated"), status_code=401)
+    
     try:
         chapters = [{"id": c.id, "title": c.title} for c in (req.chapters or []) if c.id]
         if not chapters:
             return err(Status.UserError, "No chapters selected")
-        task = download_task_manager.create_task(req.album_id, req.album_title, chapters)
+        task = download_task_manager.create_task(u.uid, req.album_id, req.album_title, chapters)
         return ok(task.to_public(), msg="")
     except Exception as e:
         return err(Status.Error, str(e))
 
+@app.get("/api/download/tasks")
+def list_download_tasks(request: Request):
+    u = get_site_user(request)
+    if not u:
+        return JSONResponse(err(Status.NotLogin, "Not authenticated"), status_code=401)
+        
+    tasks = download_task_manager.get_tasks_by_user(u.uid)
+    tasks_sorted = sorted(tasks, key=lambda x: x.created_at, reverse=True)
+    
+    disk_info = download_task_manager.get_disk_usage()
+    
+    return ok({
+        "tasks": [t.to_public() for t in tasks_sorted],
+        "disk_info": disk_info
+    }, msg="")
 
-@app.get("/api/download/tasks/{task_id}")
-def get_download_task(task_id: str):
+@app.delete("/api/download/tasks/{task_id}")
+def delete_download_task(task_id: str, request: Request):
+    u = get_site_user(request)
+    if not u:
+        return JSONResponse(err(Status.NotLogin, "Not authenticated"), status_code=401)
+        
     task = download_task_manager.get_task(task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
+        
+    if task.user_id != str(u.uid):
+        raise HTTPException(status_code=403, detail="Permission denied")
+        
+    success = download_task_manager.delete_task(task_id)
+    if not success:
+        return err(Status.Error, "Failed to delete task")
+        
+    return ok({"status": "success"}, msg="")
+
+@app.get("/api/download/tasks/{task_id}")
+def get_download_task(task_id: str, request: Request):
+    u = get_site_user(request)
+    if not u:
+        return JSONResponse(err(Status.NotLogin, "Not authenticated"), status_code=401)
+        
+    task = download_task_manager.get_task(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+        
+    if task.user_id != str(u.uid):
+        raise HTTPException(status_code=403, detail="Permission denied")
+        
     return ok(task.to_public(), msg="")
 
 
 @app.get("/api/download/tasks/{task_id}/download")
-def download_task_zip(task_id: str):
+def download_task_zip(task_id: str, request: Request):
+    # 对于下载请求，如果是直接通过URL访问，可能没有cookie
+    # 这里允许下载，但如果有认证则验证归属
+    u = get_site_user(request)
+    
     task = download_task_manager.get_task(task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
+        
+    if u and task.user_id != str(u.uid):
+        raise HTTPException(status_code=403, detail="Permission denied")
+        
     if task.status != "completed" or not task.zip_path:
         raise HTTPException(status_code=400, detail="Task not completed")
     if not os.path.exists(task.zip_path):
@@ -2163,6 +2220,7 @@ async def views_bundle():
         "jm_random.html",
         "jm_history.html",
         "jm_favorites.html",
+        "downloads.html"
     ]
     out: dict[str, str] = {}
     for f in files:
@@ -2202,6 +2260,7 @@ async def app_bundle():
         "jm_random.html",
         "jm_history.html",
         "jm_favorites.html",
+        "downloads.html"
     ]
 
     try:
