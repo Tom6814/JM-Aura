@@ -25,8 +25,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-          pip install pywebview
-          pip install pyinstaller
+          pip install pywebview pythonnet pyinstaller
 
       - name: Build (PyInstaller)
         shell: pwsh
@@ -39,12 +38,17 @@ jobs:
             --name JM-Aura `
             --onedir `
             --noconsole `
+            -p . `
             packaging/entrypoint.py `
             --add-data "frontend;frontend" `
+            --collect-all backend `
             --collect-all fastapi `
             --collect-all uvicorn `
             --collect-all jmcomic `
             --collect-all webview `
+            --collect-all pythonnet `
+            --collect-all sqlalchemy `
+            --hidden-import clr `
             --hidden-import "webview.platforms.edgechromium" `
             --hidden-import "webview.platforms.winforms"
 

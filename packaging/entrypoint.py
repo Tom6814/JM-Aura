@@ -9,9 +9,23 @@ JM-Aura Windows 可执行文件入口（独立窗口版）。
 from __future__ import annotations
 
 import os
+import sys
 import socket
 import threading
 import time
+
+from backend.core.paths import app_data_dir
+
+# 0) 确保独立运行环境中有合理的数据库路径，避免无 .env 时报错崩溃
+if not os.environ.get("DATABASE_URL"):
+    db_dir = app_data_dir("JM-Aura")
+    os.makedirs(db_dir, exist_ok=True)
+    # SQLAlchemy sqlite 绝对路径格式：sqlite:////绝对路径（注意有斜杠处理）
+    db_path = os.path.join(db_dir, "jm_aura.db").replace('\\', '/')
+    os.environ["DATABASE_URL"] = f"sqlite:///{db_path}"
+
+# 引入 FastAPI app（必须在设置完环境变量后）
+from backend.main import app  # noqa: WPS433 (runtime import for packaging)
 
 import uvicorn
 import webview
@@ -41,9 +55,6 @@ def _wait_port(host: str, port: int, timeout_sec: float = 15.0) -> bool:
 
 
 def main():
-    # 引入 FastAPI app（保持原项目逻辑）
-    from backend.main import app  # noqa: WPS433 (runtime import for packaging)
-
     # 1) 后台启动 uvicorn（线程方式，便于窗口关闭后发出退出信号）
     config = uvicorn.Config(app, host=HOST, port=PORT, log_level="info")
     server = uvicorn.Server(config)
