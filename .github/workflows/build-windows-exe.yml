@@ -1,0 +1,59 @@
+name: Build Windows EXE
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install deps
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pywebview
+          pip install pyinstaller
+
+      - name: Build (PyInstaller)
+        shell: pwsh
+        run: |
+          # 说明：
+          # - 入口脚本在 packaging/entrypoint.py
+          # - frontend 静态资源必须通过 --add-data 带入，否则 exe 运行时找不到页面文件
+          pyinstaller `
+            -y `
+            --name JM-Aura `
+            --onedir `
+            --noconsole `
+            packaging/entrypoint.py `
+            --add-data "frontend;frontend" `
+            --collect-all fastapi `
+            --collect-all uvicorn `
+            --collect-all jmcomic `
+            --collect-all webview `
+            --hidden-import "webview.platforms.edgechromium" `
+            --hidden-import "webview.platforms.winforms"
+
+      - name: Zip artifact
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+          if (!(Test-Path dist\JM-Aura)) { throw "dist\\JM-Aura not found" }
+          Compress-Archive -Path dist\JM-Aura\* -DestinationPath JM-Aura-windows.zip -Force
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: JM-Aura-windows
+          path: JM-Aura-windows.zip
