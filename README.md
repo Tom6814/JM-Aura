@@ -53,33 +53,7 @@
 - **网络与线路**：内置图片代理/多线路机制（遇到加载问题可以切换）。
 
 
-# 🎯如何部署？
 
- 
-  
-- **⚠️ v1.4.0新增外部数据库存储支持，如有需要请在 .env 文件中配置数据库**
-
-  
-
-## ⚡Render部署（推荐，免费）
-
-使用类似Render这样的免费python项目托管平台来部署JM-Aura。
-
-- [fork该项目](https://github.com/Tom6814/JM-Aura/fork)到你的Github账户下，仓库类型无要求（个人使用最好选”私密“）
-  
-- 打开[Render](https://dashboard.render.com)，注册一个账号
-  
-- 然后点击[新建Web Service](https://dashboard.render.com/web/new)，授权Render访问自己的Github账户后选择刚刚fork的仓库
-  
-- 接下来的配置界面，**Name**部分随便填，**Language**选择*Python3*，**Region**选择一个离自己位置近的服务器【大陆建议选Singapore (Southeast Asia)】
-  
-- 启动命令填入`pip install -r requirements.txt && python3 -m uvicorn backend.main:app --host 0.0.0.0 --port 8000`，**Instance Type**选择*Free*，最后点击**Deploy web service**
-  
-- 等待部署完成后访问`https://<你设置的Render项目名称>.onrender.com`
-  
-- Enjot it! ψ(｀∇´)ψ
-  
-🧐注意：当Render项目15分钟没有被访问时就会自动休眠，导致下次访问时会等待更长时间（冷启动），可以配置一个第三方网站监控（如Instatus、uptime kuma等）隔5-10分钟监控一次网址来解决，这里便不过多赘述。
 
 
 
@@ -122,6 +96,37 @@
 建议做法：
 - 分享代码时只保留 `config/op.example.yml`、`backend/config/cookies.example.json`
 - `downloads/` 是下载产物目录（可自行清理/迁移）
+
+# 🎯如何部署？
+
+ 
+  
+- **⚠️ v1.4.0新增外部数据库存储支持，如有需要请在 .env 文件中配置数据库**
+
+  
+
+## ⚡Render部署（推荐，免费）
+
+使用类似Render这样的免费python项目托管平台来部署JM-Aura。
+
+- [fork该项目](https://github.com/Tom6814/JM-Aura/fork)到你的Github账户下，仓库类型无要求（个人使用最好选”私密“）
+  
+- 打开[Render](https://dashboard.render.com)，注册一个账号
+  
+- 然后点击[新建Web Service](https://dashboard.render.com/web/new)，授权Render访问自己的Github账户后选择刚刚fork的仓库
+  
+- 接下来的配置界面，**Name**部分随便填，**Language**选择*Python3*，**Region**选择一个离自己位置近的服务器【大陆建议选Singapore (Southeast Asia)】
+  
+- 启动命令填入`pip install -r requirements.txt && python3 -m uvicorn backend.main:app --host 0.0.0.0 --port 8000`，**Instance Type**选择*Free*，最后点击**Deploy web service**
+  
+- 等待部署完成后访问`https://<你设置的Render项目名称>.onrender.com`
+  
+- Enjot it! ψ(｀∇´)ψ
+  
+🧐注意：当Render项目15分钟没有被访问时就会自动休眠，导致下次访问时会等待更长时间（冷启动），可以配置一个第三方网站监控（如Instatus、uptime kuma等）隔5-10分钟监控一次网址来解决，这里便不过多赘述。
+
+
+
   
 ## 🚀 服务器部署
 
