@@ -43,7 +43,7 @@ from backend.core.aura_library_store import (
     toggle_folder_item as aura_toggle_folder_item,
 )
 from backend.core.parsers import parse_chapter_view_template
-from backend.core.secure_credentials import clear_credentials, get_credentials, get_username, has_credentials, set_credentials
+from backend.core.secure_credentials import clear_credentials, get_credentials, get_username, has_credentials, set_credentials, list_accounts, set_active, remove_account
 from backend.core.site_auth import (
     clear_session as clear_site_session,
     create_session as create_site_session,
@@ -319,6 +319,10 @@ def site_register(req: SiteAuthRequest, request: Request):
         migrate_legacy_cookies_to_user(str(req.username or "").strip())
     except Exception:
         pass
+    try:
+        _relogin_from_saved_config(user=str(req.username or "").strip())
+    except Exception:
+        pass
     resp = JSONResponse(ok({"username": req.username, "is_admin": bool(admin_flag)}, msg=""))
     resp.set_cookie(
         get_site_session_cookie_name(),
@@ -342,6 +346,10 @@ def site_login(req: SiteAuthRequest, request: Request):
         pass
     try:
         migrate_legacy_cookies_to_user(str(req.username or "").strip())
+    except Exception:
+        pass
+    try:
+        _relogin_from_saved_config(user=str(req.username or "").strip())
     except Exception:
         pass
     resp = JSONResponse(ok({"username": req.username, "is_admin": bool(is_site_admin(req.username))}, msg=""))
@@ -674,10 +682,15 @@ def aura_library_note_set(req: AuraNoteSetRequest, request: Request):
 class AuraJmAccountAddRequest(BaseModel):
     username: str
     password: str
+    set_active: bool = True
 
 
 class AuraJmAccountRemoveRequest(BaseModel):
-    pass
+    username: str
+
+
+class AuraJmAccountSwitchRequest(BaseModel):
+    username: str
 
 
 class JmWebRegisterRequest(BaseModel):
@@ -771,12 +784,10 @@ def aura_jm_accounts(request: Request):
     if not u:
         return JSONResponse(err(Status.NotLogin, "Not authenticated"), status_code=401)
     try:
-        jm_u = get_username(user=u)
-        if not jm_u:
-            return ok({"account": None}, msg="")
-        return ok({"account": {"username": jm_u}}, msg="")
+        data = list_accounts(user=u)
+        return ok(data, msg="")
     except Exception:
-        return ok({"account": None}, msg="")
+        return ok({"active": "", "accounts": []}, msg="")
 
 
 @app.post("/api/aura/jm/accounts/add")
@@ -828,11 +839,59 @@ def aura_jm_accounts_remove(req: AuraJmAccountRemoveRequest, request: Request):
     aura_u = get_site_user(request)
     if not aura_u:
         return JSONResponse(err(Status.NotLogin, "Not authenticated"), status_code=401)
+    jm_u = str(req.username or "").strip()
+    if not jm_u:
+        return err(Status.UserError, "Missing username")
     try:
-        clear_credentials(user=aura_u)
+        remove_account(jm_u, user=aura_u)
     except Exception as e:
         return err(Status.UserError, str(e) or "Remove account failed")
     return ok({"status": "success"}, msg="")
+
+
+@app.post("/api/aura/jm/accounts/switch")
+def aura_jm_accounts_switch(req: AuraJmAccountSwitchRequest, request: Request):
+    aura_u = get_site_user(request)
+    if not aura_u:
+        return JSONResponse(err(Status.NotLogin, "Not authenticated"), status_code=401)
+    jm_u = str(req.username or "").strip()
+    if not jm_u:
+        return err(Status.UserError, "Missing username")
+    
+    try:
+        u, p = get_credentials(user=aura_u, jm_username=jm_u)
+        if not u or not p:
+            return err(Status.UserError, "Credentials not found for this account")
+        data = LoginReq2(u, p).execute()
+        save_cookies()
+        
+        set_active(jm_u, user=aura_u)
+
+        if isinstance(data, dict):
+            set_user_profile(data)
+            uid = None
+            for k in ("uid", "user_id", "id"):
+                v = data.get(k)
+                if v:
+                    uid = str(v)
+                    break
+            if not uid:
+                for k in ("user", "userinfo", "profile", "member"):
+                    sub = data.get(k)
+                    if isinstance(sub, dict):
+                        for kk in ("uid", "user_id", "id"):
+                            vv = sub.get(kk)
+                            if vv:
+                                uid = str(vv)
+                                break
+                    if uid:
+                        break
+            if uid:
+                set_user_id(uid)
+                
+        return ok({"status": "success"}, msg="")
+    except Exception as e:
+        return err(Status.UserError, str(e) or "Switch account failed")
 
 
 class ConfigRequest(BaseModel):
