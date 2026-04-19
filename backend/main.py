@@ -1,11 +1,8 @@
 from __future__ import annotations
 
 import os
-try:
-    from dotenv import load_dotenv
-    load_dotenv()
-except ImportError:
-    pass
+from dotenv import load_dotenv
+load_dotenv()
 import copy
 import re
 import shutil
@@ -15,9 +12,12 @@ import io
 from queue import Queue
 from typing import Any
 from urllib.parse import urlparse
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 import requests
-from fastapi import BackgroundTasks, FastAPI, HTTPException, UploadFile, File, Request
+from fastapi import BackgroundTasks, Body, FastAPI, HTTPException, UploadFile, File, Request
 from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -43,7 +43,7 @@ from backend.core.aura_library_store import (
     toggle_folder_item as aura_toggle_folder_item,
 )
 from backend.core.parsers import parse_chapter_view_template
-from backend.core.secure_credentials import clear_credentials, get_credentials, get_username, has_credentials, set_credentials, list_accounts, set_active, remove_account
+from backend.core.secure_credentials import clear_credentials, get_credentials, get_username, has_credentials, set_credentials
 from backend.core.site_auth import (
     clear_session as clear_site_session,
     create_session as create_site_session,
@@ -91,6 +91,10 @@ from backend.providers.registry import get_provider, register_provider
 import traceback
 
 app = FastAPI(title="JM-Dashboard")
+
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(GZipMiddleware, minimum_size=800)
 
 @app.on_event("startup")
@@ -144,6 +148,40 @@ def _jm_web_headers(referer: str | None = None) -> dict[str, str]:
     return h
 
 
+def _should_secure_cookie(request: Request) -> bool:
+    try:
+        xf_proto = str(request.headers.get("x-forwarded-proto") or "").strip().lower()
+        if xf_proto:
+            return xf_proto == "https"
+    except Exception:
+        pass
+    try:
+        return str(request.url.scheme or "").strip().lower() == "https"
+    except Exception:
+        return False
+
+
+def _has_live_jm_session() -> bool:
+    try:
+        sess = get_session()
+        if not sess.cookies.get_dict():
+            return False
+    except Exception:
+        return False
+    try:
+        req = GetFavoritesReq2(page=1, fid="0")
+        req.timeout = 4
+        req.execute()
+        return True
+    except Exception as e:
+        if "HTTP 401" in str(e):
+            return False
+        try:
+            return bool(get_session().cookies.get_dict())
+        except Exception:
+            return False
+
+
 @app.middleware("http")
 async def site_auth_middleware(request: Request, call_next):
     if site_auth_middleware_allow(request.url.path):
@@ -171,7 +209,7 @@ async def site_auth_middleware(request: Request, call_next):
                 new_gid,
                 httponly=True,
                 samesite="lax",
-                secure=(request.url.scheme == "https"),
+                secure=_should_secure_cookie(request),
                 max_age=365 * 86400,
             )
         return resp
@@ -244,6 +282,7 @@ class SiteAuthRequest(BaseModel):
 class SiteProfileRequest(BaseModel):
     theme: dict[str, Any] | None = None
     features: dict[str, Any] | None = None
+    signature: str | None = None
 
 
 @app.post("/api/site/admin/create-user")
@@ -266,8 +305,7 @@ def jm_binding_status(request: Request):
     site_logged_in = bool(site_u)
     has_saved = bool(has_credentials(user=site_u)) if site_u else False
     saved_jm_username = get_username(user=site_u) if site_u else ""
-    sess = get_session()
-    jm_logged_in = bool(sess.cookies.get_dict())
+    jm_logged_in = _has_live_jm_session()
     
     return ok(
         {
@@ -302,63 +340,81 @@ def site_status():
 
 
 @app.post("/api/site/register")
-def site_register(req: SiteAuthRequest, request: Request):
+@limiter.limit("5/minute")
+def site_register(request: Request, req: dict[str, Any] = Body(...)):
+    req = req if isinstance(req, dict) else {}
+    auth = SiteAuthRequest(username=str(req.get("username") or ""), password=str(req.get("password") or ""))
     admin_flag = not has_any_site_user()
     try:
-        create_site_user(req.username, req.password, admin=admin_flag)
+        create_site_user(auth.username, auth.password, admin=admin_flag)
     except ValueError as e:
         return err(Status.UserError, str(e) or "Invalid username or password")
     except Exception as e:
         return JSONResponse(err(Status.Error, str(e) or "Registration failed"), status_code=500)
-    sid = create_site_session(req.username)
+    sid = create_site_session(auth.username)
     try:
-        _migrate_op_yml_credentials(str(req.username or "").strip())
+        _migrate_op_yml_credentials(str(auth.username or "").strip())
     except Exception:
         pass
     try:
-        migrate_legacy_cookies_to_user(str(req.username or "").strip())
+        migrate_legacy_cookies_to_user(str(auth.username or "").strip())
     except Exception:
         pass
-    try:
-        _relogin_from_saved_config(user=str(req.username or "").strip())
-    except Exception:
-        pass
-    resp = JSONResponse(ok({"username": req.username, "is_admin": bool(admin_flag)}, msg=""))
+    resp = JSONResponse(ok({"username": auth.username, "is_admin": bool(admin_flag)}, msg=""))
     resp.set_cookie(
         get_site_session_cookie_name(),
         sid,
         httponly=True,
         samesite="lax",
-        secure=(request.url.scheme == "https"),
+        secure=_should_secure_cookie(request),
         max_age=7 * 86400,
     )
     return resp
 
 
 @app.post("/api/site/login")
-def site_login(req: SiteAuthRequest, request: Request):
-    if not verify_site_user(req.username, req.password):
-        return JSONResponse(err(Status.UserError, "Login failed"), status_code=401)
-    sid = create_site_session(req.username)
+@limiter.limit("10/minute")
+def site_login(request: Request, req: dict[str, Any] = Body(...)):
+    req = req if isinstance(req, dict) else {}
+    auth = SiteAuthRequest(username=str(req.get("username") or ""), password=str(req.get("password") or ""))
+    if not auth.username or not auth.password:
+        return JSONResponse(err(Status.UserError, "Username and password required"), status_code=400)
+    
+    # 1. Login to JM directly
     try:
-        _migrate_op_yml_credentials(str(req.username or "").strip())
+        data = LoginReq2(auth.username, auth.password).execute()
+        if not data:
+            return JSONResponse(err(Status.UserError, "JM Login failed"), status_code=401)
+    except Exception as e:
+        return JSONResponse(err(Status.UserError, f"JM Login failed: {str(e)}"), status_code=401)
+
+    # 2. Create local shadow user (ignore if exists)
+    try:
+        create_site_user(auth.username, auth.password)
+    except Exception:
+        pass # User already exists
+        
+    # 3. Create session and bind JM credentials
+    sid = create_site_session(auth.username)
+    # Always save credentials to allow auto re-login
+    set_credentials(auth.username, auth.password, user=auth.username)
+    
+    try:
+        _migrate_op_yml_credentials(str(auth.username or "").strip())
     except Exception:
         pass
     try:
-        migrate_legacy_cookies_to_user(str(req.username or "").strip())
+        migrate_legacy_cookies_to_user(str(auth.username or "").strip())
     except Exception:
         pass
-    try:
-        _relogin_from_saved_config(user=str(req.username or "").strip())
-    except Exception:
-        pass
-    resp = JSONResponse(ok({"username": req.username, "is_admin": bool(is_site_admin(req.username))}, msg=""))
+        
+    resp = JSONResponse(ok({"username": auth.username, "is_admin": bool(is_site_admin(auth.username))}, msg=""))
     resp.set_cookie(
         get_site_session_cookie_name(),
         sid,
         httponly=True,
         samesite="lax",
-        secure=(request.url.scheme == "https"),
+        secure=_should_secure_cookie(request),
         max_age=7 * 86400,
     )
     return resp
@@ -399,6 +455,8 @@ def site_profile_patch(req: SiteProfileRequest, request: Request):
         patch["theme"] = req.theme
     if isinstance(req.features, dict):
         patch["features"] = req.features
+    if req.signature is not None:
+        patch["signature"] = req.signature
     return ok(patch_site_profile(u, patch), msg="")
 
 
@@ -407,6 +465,7 @@ class AuraHistoryPushRequest(BaseModel):
     album_title: str | None = None
     photo_id: str | None = None
     title: str | None = None
+    page_index: int | None = None
     timestamp: int | None = None
 
 
@@ -468,6 +527,7 @@ def aura_library_history_push(req: AuraHistoryPushRequest, request: Request):
             album_title=str(req.album_title or ""),
             photo_id=str(req.photo_id or ""),
             title=str(req.title or ""),
+            page_index=req.page_index,
             ts=req.timestamp,
         )
     except Exception as e:
@@ -475,222 +535,16 @@ def aura_library_history_push(req: AuraHistoryPushRequest, request: Request):
     return ok({"status": "success"}, msg="")
 
 
-@app.post("/api/aura/library/sync-to-jm")
-def aura_library_sync_to_jm(req: AuraSyncToJmRequest, request: Request):
-    aura_u = get_site_user(request)
-    if not aura_u:
-        return JSONResponse(err(Status.NotLogin, "Not authenticated"), status_code=401)
 
-    def _fetch_remote_favs() -> tuple[set[str], dict[str, str]]:
-        r0 = GetFavoritesReq2(page=1, fid="0")
-        r0.timeout = 8
-        raw0 = r0.execute()
-        d0 = adapt_favorites(raw0)
-        folders = d0.get("folders") if isinstance(d0, dict) else []
-        folder_map: dict[str, str] = {}
-        if isinstance(folders, list):
-            for f in folders:
-                if not isinstance(f, dict):
-                    continue
-                name = str(f.get("name") or "").strip()
-                fid = str(f.get("id") or "").strip()
-                if name and fid and name not in folder_map:
-                    folder_map[name] = fid
-        pages = int(d0.get("pages") or 1) if isinstance(d0, dict) else 1
-        pages = max(1, min(80, pages))
-        ids: set[str] = set()
-        for page in range(1, pages + 1):
-            rp = GetFavoritesReq2(page=page, fid="0")
-            rp.timeout = 10
-            raw = rp.execute()
-            dp = adapt_favorites(raw)
-            content = dp.get("content") if isinstance(dp, dict) else []
-            if isinstance(content, list):
-                for it in content:
-                    if isinstance(it, dict):
-                        aid = str(it.get("album_id") or "").strip()
-                        if aid:
-                            ids.add(aid)
-        return ids, folder_map
-
-    def _create_remote_folder(name: str) -> str:
-        r = AddFavoritesFoldReq2(name)
-        r.timeout = 10
-        r.execute()
-        _, fm = _fetch_remote_favs()
-        return str(fm.get(name) or "").strip()
-
-    def _run() -> dict:
-        local = aura_list_folders_with_album_ids(aura_u)
-        want_ids = set(str(x) for x in (req.folder_ids or []) if str(x).strip())
-        if want_ids:
-            local = [f for f in local if str(f.get("id") or "") in want_ids]
-
-        remote_ids, remote_folder_by_name = _fetch_remote_favs()
-
-        created_folders = 0
-        added_favorites = 0
-        moved = 0
-        skipped = 0
-        duplicates = 0
-        processed: set[str] = set()
-        errors: list[str] = []
-
-        for f in local:
-            name = str(f.get("name") or "").strip()
-            album_ids = f.get("album_ids")
-            if not name or not isinstance(album_ids, list) or not album_ids:
-                continue
-
-            jm_fid = str(remote_folder_by_name.get(name) or "").strip()
-            if not jm_fid and bool(req.create_missing_folders):
-                try:
-                    jm_fid = _create_remote_folder(name)
-                    if jm_fid:
-                        remote_folder_by_name[name] = jm_fid
-                        created_folders += 1
-                except Exception as e:
-                    errors.append(f"创建文件夹失败：{name}（{str(e) or 'error'}）")
-                    continue
-
-            for aid0 in album_ids:
-                aid = str(aid0 or "").strip()
-                if not aid:
-                    continue
-                if aid in processed:
-                    duplicates += 1
-                    continue
-
-                if aid not in remote_ids:
-                    ra = AddAndDelFavoritesReq2(aid)
-                    ra.timeout = 10
-                    ra.execute()
-                    remote_ids.add(aid)
-                    added_favorites += 1
-                else:
-                    skipped += 1
-
-                if jm_fid:
-                    rm = MoveFavoritesFoldReq2(aid, jm_fid)
-                    rm.timeout = 10
-                    rm.execute()
-                    moved += 1
-
-                processed.add(aid)
-
-        return ok(
-            {
-                "created_folders": created_folders,
-                "added_favorites": added_favorites,
-                "moved": moved,
-                "skipped_existing": skipped,
-                "duplicates_skipped": duplicates,
-                "errors": errors[:10],
-            },
-            msg="",
-        )
-
-    try:
-        return _run()
-    except Exception as e:
-        if "HTTP 401" in str(e) and _relogin_from_saved_config():
-            try:
-                return _run()
-            except Exception:
-                return err(Status.NotLogin, "Not logged in")
-        if "HTTP 401" in str(e):
-            return err(Status.NotLogin, "Not logged in")
-        return err(Status.Error, str(e))
-
-
-@app.get("/api/aura/library/folders")
-def aura_library_folders(request: Request):
-    u = get_site_user(request)
-    if not u:
-        return JSONResponse(err(Status.NotLogin, "Not authenticated"), status_code=401)
-    return ok(aura_list_folders(u), msg="")
-
-
-@app.post("/api/aura/library/folders/create")
-def aura_library_folder_create(req: AuraFolderCreateRequest, request: Request):
-    u = get_site_user(request)
-    if not u:
-        return JSONResponse(err(Status.NotLogin, "Not authenticated"), status_code=401)
-    try:
-        f = aura_create_folder(u, req.name)
-        return ok(f, msg="")
-    except Exception as e:
-        return err(Status.UserError, str(e) or "Create failed")
-
-
-@app.post("/api/aura/library/folders/rename")
-def aura_library_folder_rename(req: AuraFolderRenameRequest, request: Request):
-    u = get_site_user(request)
-    if not u:
-        return JSONResponse(err(Status.NotLogin, "Not authenticated"), status_code=401)
-    try:
-        aura_rename_folder(u, req.folder_id, req.name)
-        return ok({"status": "success"}, msg="")
-    except Exception as e:
-        return err(Status.UserError, str(e) or "Rename failed")
-
-
-@app.post("/api/aura/library/folders/delete")
-def aura_library_folder_delete(req: AuraFolderDeleteRequest, request: Request):
-    u = get_site_user(request)
-    if not u:
-        return JSONResponse(err(Status.NotLogin, "Not authenticated"), status_code=401)
-    try:
-        aura_delete_folder(u, req.folder_id)
-        return ok({"status": "success"}, msg="")
-    except Exception as e:
-        return err(Status.UserError, str(e) or "Delete failed")
-
-
-@app.post("/api/aura/library/folders/toggle")
-def aura_library_folder_toggle(req: AuraFolderToggleItemRequest, request: Request):
-    u = get_site_user(request)
-    if not u:
-        return JSONResponse(err(Status.NotLogin, "Not authenticated"), status_code=401)
-    try:
-        aura_toggle_folder_item(u, req.folder_id, req.album_id, bool(req.present))
-        return ok({"status": "success"}, msg="")
-    except Exception as e:
-        return err(Status.UserError, str(e) or "Update failed")
-
-
-@app.get("/api/aura/library/notes/{album_id}")
-def aura_library_note_get(album_id: str, request: Request):
-    u = get_site_user(request)
-    if not u:
-        return JSONResponse(err(Status.NotLogin, "Not authenticated"), status_code=401)
-    return ok(aura_get_note(u, album_id), msg="")
-
-
-@app.post("/api/aura/library/notes/set")
-def aura_library_note_set(req: AuraNoteSetRequest, request: Request):
-    u = get_site_user(request)
-    if not u:
-        return JSONResponse(err(Status.NotLogin, "Not authenticated"), status_code=401)
-    try:
-        aura_set_note(u, req.album_id, tags=req.tags, note=str(req.note or ""))
-        return ok({"status": "success"}, msg="")
-    except Exception as e:
-        return err(Status.UserError, str(e) or "Update failed")
 
 
 class AuraJmAccountAddRequest(BaseModel):
     username: str
     password: str
-    set_active: bool = True
 
 
 class AuraJmAccountRemoveRequest(BaseModel):
-    username: str
-
-
-class AuraJmAccountSwitchRequest(BaseModel):
-    username: str
+    pass
 
 
 class JmWebRegisterRequest(BaseModel):
@@ -704,20 +558,33 @@ class JmWebRegisterRequest(BaseModel):
 
 @app.get("/api/jm/register/captcha")
 def jm_register_captcha(request: Request):
-    site_u = get_site_user(request)
-    if not site_u:
-        return JSONResponse(err(Status.NotLogin, "Aura login required"), status_code=401)
+    client_ip = request.client.host if request.client else "anon"
     base = str(GlobalConfig.Url.value or "").strip()
     if not base:
         return err(Status.Error, "Missing JM web base url")
-    s = _get_jm_register_session(site_u)
+    s = _get_jm_register_session(client_ip)
     try:
         try:
             s.get(f"{base}/login", headers=_jm_web_headers(f"{base}/login"), timeout=8, allow_redirects=True)
         except Exception:
             pass
         r = s.get(f"{base}/captcha", headers=_jm_web_headers(f"{base}/signup"), timeout=12, allow_redirects=True)
-        ct = str(r.headers.get("content-type") or "image/jpeg")
+        if r.status_code >= 400:
+            return JSONResponse(status_code=502, content={"st": Status.Error, "msg": f"验证码获取失败: HTTP {r.status_code}"})
+        ct = str(r.headers.get("content-type") or "").lower()
+        if not ct.startswith("image/"):
+            body_preview = ""
+            try:
+                body_preview = r.text[:200].strip()
+            except Exception:
+                body_preview = ""
+            return JSONResponse(
+                status_code=502,
+                content={
+                    "st": Status.Error,
+                    "msg": body_preview or f"验证码返回格式异常: {ct or 'unknown'}",
+                },
+            )
         return StreamingResponse(io.BytesIO(r.content), media_type=ct)
     except Exception as e:
         return err(Status.Error, str(e) or "Captcha fetch failed")
@@ -725,9 +592,7 @@ def jm_register_captcha(request: Request):
 
 @app.post("/api/jm/register")
 def jm_register(req: JmWebRegisterRequest, request: Request):
-    site_u = get_site_user(request)
-    if not site_u:
-        return JSONResponse(err(Status.NotLogin, "Aura login required"), status_code=401)
+    client_ip = request.client.host if request.client else "anon"
     u = str(req.username or "").strip()
     em = str(req.email or "").strip()
     pw = str(req.password or "")
@@ -745,7 +610,7 @@ def jm_register(req: JmWebRegisterRequest, request: Request):
     if not base:
         return err(Status.Error, "Missing JM web base url")
 
-    s = _get_jm_register_session(site_u)
+    s = _get_jm_register_session(client_ip)
     url = f"{base}/signup"
     data = {
         "username": u,
@@ -778,120 +643,7 @@ def jm_register(req: JmWebRegisterRequest, request: Request):
         return err(Status.Error, str(e) or "Register failed")
 
 
-@app.get("/api/aura/jm/accounts")
-def aura_jm_accounts(request: Request):
-    u = get_site_user(request)
-    if not u:
-        return JSONResponse(err(Status.NotLogin, "Not authenticated"), status_code=401)
-    try:
-        data = list_accounts(user=u)
-        return ok(data, msg="")
-    except Exception:
-        return ok({"active": "", "accounts": []}, msg="")
 
-
-@app.post("/api/aura/jm/accounts/add")
-def aura_jm_accounts_add(req: AuraJmAccountAddRequest, request: Request):
-    aura_u = get_site_user(request)
-    if not aura_u:
-        return JSONResponse(err(Status.NotLogin, "Not authenticated"), status_code=401)
-    jm_u = str(req.username or "").strip()
-    jm_p = str(req.password or "")
-    if not jm_u or not jm_p:
-        return err(Status.UserError, "Missing username or password")
-
-    try:
-        data = LoginReq2(jm_u, jm_p).execute()
-        save_cookies()
-        if isinstance(data, dict):
-            set_user_profile(data)
-            uid = None
-            for k in ("uid", "user_id", "id"):
-                v = data.get(k)
-                if v:
-                    uid = str(v)
-                    break
-            if not uid:
-                for k in ("user", "userinfo", "profile", "member"):
-                    sub = data.get(k)
-                    if isinstance(sub, dict):
-                        for kk in ("uid", "user_id", "id"):
-                            vv = sub.get(kk)
-                            if vv:
-                                uid = str(vv)
-                                break
-                    if uid:
-                        break
-            if uid:
-                set_user_id(uid)
-    except Exception as e:
-        return err(Status.UserError, str(e) or "Login failed")
-
-    try:
-        set_credentials(jm_u, jm_p, user=aura_u)
-    except Exception as e:
-        return err(Status.UserError, str(e) or "Save account failed")
-    return ok({"status": "success"}, msg="")
-
-
-@app.post("/api/aura/jm/accounts/remove")
-def aura_jm_accounts_remove(req: AuraJmAccountRemoveRequest, request: Request):
-    aura_u = get_site_user(request)
-    if not aura_u:
-        return JSONResponse(err(Status.NotLogin, "Not authenticated"), status_code=401)
-    jm_u = str(req.username or "").strip()
-    if not jm_u:
-        return err(Status.UserError, "Missing username")
-    try:
-        remove_account(jm_u, user=aura_u)
-    except Exception as e:
-        return err(Status.UserError, str(e) or "Remove account failed")
-    return ok({"status": "success"}, msg="")
-
-
-@app.post("/api/aura/jm/accounts/switch")
-def aura_jm_accounts_switch(req: AuraJmAccountSwitchRequest, request: Request):
-    aura_u = get_site_user(request)
-    if not aura_u:
-        return JSONResponse(err(Status.NotLogin, "Not authenticated"), status_code=401)
-    jm_u = str(req.username or "").strip()
-    if not jm_u:
-        return err(Status.UserError, "Missing username")
-    
-    try:
-        u, p = get_credentials(user=aura_u, jm_username=jm_u)
-        if not u or not p:
-            return err(Status.UserError, "Credentials not found for this account")
-        data = LoginReq2(u, p).execute()
-        save_cookies()
-        
-        set_active(jm_u, user=aura_u)
-
-        if isinstance(data, dict):
-            set_user_profile(data)
-            uid = None
-            for k in ("uid", "user_id", "id"):
-                v = data.get(k)
-                if v:
-                    uid = str(v)
-                    break
-            if not uid:
-                for k in ("user", "userinfo", "profile", "member"):
-                    sub = data.get(k)
-                    if isinstance(sub, dict):
-                        for kk in ("uid", "user_id", "id"):
-                            vv = sub.get(kk)
-                            if vv:
-                                uid = str(vv)
-                                break
-                    if uid:
-                        break
-            if uid:
-                set_user_id(uid)
-                
-        return ok({"status": "success"}, msg="")
-    except Exception as e:
-        return err(Status.UserError, str(e) or "Switch account failed")
 
 
 class ConfigRequest(BaseModel):
@@ -1021,6 +773,11 @@ async def update_config(config: ConfigRequest, request: Request):
             set_credentials(config.username, config.password, user=site_u)
         except Exception:
             pass
+    else:
+        # Note: the user asked to always save password for auto re-login
+        # but config API might be used for toggling settings. We will keep
+        # the shadow user's credentials updated in the login endpoint.
+        pass
 
     if isinstance(data, dict):
         set_user_profile(data)
@@ -1080,7 +837,7 @@ async def session_relogin(req: ReloginRequest, request: Request):
     if not u or not p:
         target_u = u or get_username(user=site_u0)
         if target_u:
-            saved_p = get_credentials(user=site_u0)
+            saved_u, saved_p = get_credentials(user=site_u0)
             if saved_p:
                 u = target_u
                 p = saved_p
@@ -1120,11 +877,11 @@ async def session_relogin(req: ReloginRequest, request: Request):
 
 def _get_saved_jm_credentials(user: str | None = None) -> tuple[str, str]:
     try:
-        u = get_username(user=user)
-        if not u:
+        active_u = get_username(user=user)
+        if not active_u:
             return "", ""
-        p = get_credentials(user=user)
-        return str(u or "").strip(), str(p or "").strip()
+        saved_u, saved_p = get_credentials(user=user, jm_username=active_u)
+        return str(saved_u or active_u or "").strip(), str(saved_p or "").strip()
     except Exception:
         return "", ""
 
@@ -1169,7 +926,7 @@ async def get_config():
     except Exception:
         u = ""
     try:
-        is_logged_in = bool(get_session().cookies.get_dict())
+        is_logged_in = _has_live_jm_session()
     except Exception:
         is_logged_in = False
     return {"username": u, "is_logged_in": is_logged_in, "st": Status.Ok, "msg": ""}
@@ -2041,8 +1798,16 @@ def image_proxy(url: str):
     ref = "https://jmcomic.me/"
     try:
         pu = urlparse(url)
+        if pu.scheme not in ("http", "https"):
+            raise HTTPException(status_code=400, detail="Invalid scheme")
+        
+        if pu.hostname in ("localhost", "127.0.0.1", "::1") or (pu.hostname and pu.hostname.startswith("192.168.")):
+            raise HTTPException(status_code=403, detail="Access denied")
+            
         if pu.scheme and pu.netloc:
             ref = f"{pu.scheme}://{pu.netloc}/"
+    except HTTPException:
+        raise
     except Exception:
         pass
     headers = {
@@ -2051,7 +1816,7 @@ def image_proxy(url: str):
     }
 
     try:
-        resp = session.get(url, headers=headers, stream=True, timeout=15, verify=False)
+        resp = session.get(url, headers=headers, stream=True, timeout=15, verify=True)
         if resp.status_code != 200:
             raise HTTPException(status_code=resp.status_code, detail="Image fetch failed")
         media_type = resp.headers.get("content-type") or "image/jpeg"
@@ -2074,7 +1839,10 @@ def chapter_image_proxy(photo_id: str, image_name: str, domain: str | None = Non
     try:
         host_candidates: list[str] = []
         if domain:
-            host_candidates.append(domain)
+            if ":" in domain or "localhost" in domain or domain.startswith("192.168.") or domain.startswith("127."):
+                pass # invalid domain
+            else:
+                host_candidates.append(domain)
         for u in GlobalConfig.PicUrlList.value:
             try:
                 host = urlparse(u).netloc
@@ -2302,6 +2070,16 @@ async def favicon():
 
     raise HTTPException(status_code=404, detail="Not found")
 
+
+@app.exception_handler(404)
+async def custom_404_handler(request: Request, exc: Exception):
+    path = request.url.path
+    if path.startswith("/api/") or "." in path.split("/")[-1]:
+        return JSONResponse(status_code=404, content={"detail": "Not found"})
+    index_path = os.path.join(frontend_path, "index.html")
+    if os.path.exists(index_path):
+        return FileResponse(index_path)
+    return JSONResponse(status_code=404, content={"detail": "Not found"})
 
 app.mount("/", StaticFiles(directory=frontend_path), name="static")
 

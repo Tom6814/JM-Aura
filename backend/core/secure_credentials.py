@@ -10,6 +10,11 @@ from backend.core.paths import app_data_dir
 from backend.core.site_auth import current_site_user
 
 
+def _keyring_disabled() -> bool:
+    v = str(os.environ.get("JM_AURA_DISABLE_KEYRING") or "").strip().lower()
+    return v in {"1", "true", "yes", "on"}
+
+
 def _store_path() -> str:
     if os.environ.get("JM_AURA_CREDENTIALS_PATH"):
         return os.environ["JM_AURA_CREDENTIALS_PATH"]
@@ -42,6 +47,10 @@ def _save_raw(data: dict[str, Any]) -> None:
     os.makedirs(os.path.dirname(p), exist_ok=True)
     with open(p, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False)
+    try:
+        os.chmod(p, 0o600)
+    except Exception:
+        pass
 
 
 def _site_user(user: str | None = None) -> str:
@@ -113,7 +122,7 @@ def list_accounts(*, user: str | None = None) -> dict[str, Any]:
             if sys.platform.startswith("win"):
                 has_pw = bool(str(rec.get("password_dpapi_b64") or "").strip())
             else:
-                has_pw = bool(rec.get("password_keyring") is True)
+                has_pw = bool(rec.get("password_keyring") is True or str(rec.get("password_plain") or "").strip())
         out.append({"username": u, "active": (u == active), "has_password": has_pw})
     return {"active": active, "accounts": out}
 
@@ -141,15 +150,16 @@ def remove_account(username: str, *, user: str | None = None) -> None:
     rec = acc.get(u)
     if isinstance(rec, dict):
         if rec.get("password_keyring") is True and not sys.platform.startswith("win"):
-            try:
-                import keyring  # type: ignore
+            if not _keyring_disabled():
                 try:
-                    site_u = _site_user(user)
-                    keyring.delete_password("JM-Aura", f"{site_u}:{u}")
+                    import keyring  # type: ignore
+                    try:
+                        site_u = _site_user(user)
+                        keyring.delete_password("JM-Aura", f"{site_u}:{u}")
+                    except Exception:
+                        pass
                 except Exception:
                     pass
-            except Exception:
-                pass
     acc.pop(u, None)
     if active == u:
         b["active"] = next(iter(sorted(acc.keys())), "")
@@ -219,14 +229,20 @@ def set_credentials(jm_username: str, jm_password: str, *, user: str | None = No
         rec.pop("password_plain", None)
         rec.pop("password_keyring", None)
     else:
-        try:
-            import keyring  # type: ignore
-        except Exception:
-            raise RuntimeError("Secure credential store not available on this platform")
         site_u = _site_user(user)
-        keyring.set_password("JM-Aura", f"{site_u}:{u}", p)
-        rec["password_keyring"] = True
-        rec.pop("password_plain", None)
+        if _keyring_disabled():
+            rec["password_plain"] = p
+            rec["password_keyring"] = False
+        else:
+            try:
+                import keyring  # type: ignore
+                keyring.set_password("JM-Aura", f"{site_u}:{u}", p)
+                rec["password_keyring"] = True
+                rec.pop("password_plain", None)
+            except Exception:
+                # Fallback for containers/servers without keyring backend.
+                rec["password_plain"] = p
+                rec["password_keyring"] = False
         rec.pop("password_dpapi_b64", None)
 
     b["active"] = u
@@ -239,17 +255,18 @@ def clear_credentials(*, user: str | None = None) -> None:
     b = _bucket(raw, user=user)
     acc, _ = _accounts_bucket(b)
     if not sys.platform.startswith("win"):
-        try:
-            import keyring  # type: ignore
-            site_u = _site_user(user)
-            for k, rec in list(acc.items()):
-                if isinstance(rec, dict) and rec.get("password_keyring") is True:
-                    try:
-                        keyring.delete_password("JM-Aura", f"{site_u}:{k}")
-                    except Exception:
-                        pass
-        except Exception:
-            pass
+        if not _keyring_disabled():
+            try:
+                import keyring  # type: ignore
+                site_u = _site_user(user)
+                for k, rec in list(acc.items()):
+                    if isinstance(rec, dict) and rec.get("password_keyring") is True:
+                        try:
+                            keyring.delete_password("JM-Aura", f"{site_u}:{k}")
+                        except Exception:
+                            pass
+            except Exception:
+                pass
     b["accounts"] = {}
     b["active"] = ""
     _save_raw(raw)
@@ -276,7 +293,7 @@ def has_credentials(*, user: str | None = None) -> bool:
         return False
     if sys.platform.startswith("win"):
         return bool(str(rec.get("password_dpapi_b64") or "").strip())
-    return bool(rec.get("password_keyring") is True)
+    return bool(rec.get("password_keyring") is True or str(rec.get("password_plain") or "").strip())
 
 
 def get_credentials(*, user: str | None = None, jm_username: str | None = None) -> tuple[str, str]:
@@ -302,13 +319,17 @@ def get_credentials(*, user: str | None = None, jm_username: str | None = None) 
             return u, plain
         except Exception:
             return "", ""
+    if _keyring_disabled():
+        return u, str(rec.get("password_plain") or "")
     try:
         import keyring  # type: ignore
     except Exception:
-        return "", ""
+        return u, str(rec.get("password_plain") or "")
     try:
         site_u = _site_user(user)
         pw = keyring.get_password("JM-Aura", f"{site_u}:{u}") or ""
-        return u, str(pw)
+        if pw:
+            return u, str(pw)
+        return u, str(rec.get("password_plain") or "")
     except Exception:
-        return "", ""
+        return u, str(rec.get("password_plain") or "")

@@ -49,6 +49,10 @@ def _save_users(data: dict[str, Any]) -> None:
     os.makedirs(os.path.dirname(p), exist_ok=True)
     with open(p, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False)
+    try:
+        os.chmod(p, 0o600)
+    except Exception:
+        pass
 
 
 def _norm_username(u: str) -> str:
@@ -167,11 +171,15 @@ def _load_sessions() -> dict[str, dict[str, Any]]:
         return {}
 
 
-def _save_sessions(data: dict[str, dict[str, Any]]) -> None:
+def _save_sessions(data: dict[str, Any]) -> None:
     p = _session_store_path()
     os.makedirs(os.path.dirname(p), exist_ok=True)
     with open(p, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False)
+    try:
+        os.chmod(p, 0o600)
+    except Exception:
+        pass
 
 
 _sessions = _load_sessions()
@@ -259,8 +267,6 @@ def require_site_user(request: Request) -> str:
 def site_auth_middleware_allow(path: str) -> bool:
     p = str(path or "")
     if not p.startswith("/api/"):
-        return True
-    if p.startswith("/api/site/"):
         return True
     if p.startswith("/api/client-info"):
         return True

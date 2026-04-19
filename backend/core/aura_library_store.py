@@ -39,6 +39,10 @@ def _save_raw(data: dict[str, Any]) -> None:
     os.makedirs(os.path.dirname(p), exist_ok=True)
     with open(p, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False)
+    try:
+        os.chmod(p, 0o600)
+    except Exception:
+        pass
 
 
 def _user_bucket(raw: dict[str, Any], user: str) -> dict[str, Any]:
@@ -62,7 +66,16 @@ def _user_bucket(raw: dict[str, Any], user: str) -> dict[str, Any]:
     return b
 
 
-def push_history(user: str, album_id: str, *, album_title: str = "", photo_id: str = "", title: str = "", ts: int | None = None) -> None:
+def push_history(
+    user: str,
+    album_id: str,
+    *,
+    album_title: str = "",
+    photo_id: str = "",
+    title: str = "",
+    page_index: int | None = None,
+    ts: int | None = None,
+) -> None:
     aid = str(album_id or "").strip()
     if not aid:
         raise ValueError("Missing album_id")
@@ -80,6 +93,11 @@ def push_history(user: str, album_id: str, *, album_title: str = "", photo_id: s
         rec["photo_id"] = str(photo_id)
     if title:
         rec["title"] = str(title)
+    if page_index is not None:
+        try:
+            rec["page_index"] = max(0, int(page_index))
+        except Exception:
+            rec["page_index"] = 0
     rec["timestamp"] = now
     _save_raw(raw)
 
@@ -100,6 +118,7 @@ def list_history(user: str, *, limit: int = 50) -> list[dict[str, Any]]:
                 "album_title": str(v.get("album_title") or ""),
                 "photo_id": str(v.get("photo_id") or ""),
                 "title": str(v.get("title") or ""),
+                "page_index": max(0, int(v.get("page_index") or 0)),
                 "timestamp": int(v.get("timestamp") or 0),
             }
         )
