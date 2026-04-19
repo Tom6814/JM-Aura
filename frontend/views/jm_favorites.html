@@ -1,28 +1,16 @@
 <div v-if="currentTab === 'jm_favorites'" class="view-content pb-24 space-y-8 animate-fade-in">
     <!-- Header -->
-    <div class="flex flex-col md:flex-row md:items-start justify-between gap-4">
+    <div class="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
         <div class="min-w-0 space-y-1">
             <h2 class="headline-medium font-bold text-on-surface flex items-center gap-3">
-                <span class="material-symbols-rounded text-primary filled-icon text-4xl">{{ favsMode === 'aura' ? 'collections_bookmark' : 'favorite' }}</span>
-                {{ favsMode === 'aura' ? '本地收藏' : 'JM 收藏夹' }}
+                <span class="material-symbols-rounded text-primary filled-icon text-4xl">favorite</span>
+                JM 收藏夹
             </h2>
             <p class="text-body-large text-on-surface-variant/80">
-                {{ favsMode === 'aura' ? '本地收藏夹（独立于 JM 官方收藏，可一键同步到 JM）' : '管理你的收藏和文件夹' }}
+                管理你的收藏和文件夹
             </p>
-            <div class="pt-2">
-                <div class="inline-flex p-1 rounded-full bg-surface-container-high shadow-sm">
-                    <button @click="setFavsMode('jm')" class="h-10 px-5 rounded-full text-sm font-bold transition"
-                        :class="favsMode === 'jm' ? 'bg-primary text-on-primary shadow-md' : 'text-on-surface-variant hover:bg-surface-container-highest'">
-                        JM 收藏
-                    </button>
-                    <button @click="setFavsMode('aura')" class="h-10 px-5 rounded-full text-sm font-bold transition"
-                        :class="favsMode === 'aura' ? 'bg-primary text-on-primary shadow-md' : 'text-on-surface-variant hover:bg-surface-container-highest'">
-                        本地收藏
-                    </button>
-                </div>
-            </div>
         </div>
-        <div v-if="favsMode === 'jm'" class="flex flex-wrap items-center gap-2">
+        <div class="flex flex-wrap items-center gap-2">
             <button v-if="!jmFavSelectionMode" @click="toggleJmFavSelectionMode" 
                 class="h-10 px-5 rounded-full bg-surface-container-high text-on-surface hover:bg-primary hover:text-on-primary transition font-medium flex items-center gap-2 shadow-sm">
                 <span class="material-symbols-rounded text-[20px]">checklist</span>
@@ -47,29 +35,19 @@
                 <span class="material-symbols-rounded" :class="jmFavLoading ? 'animate-spin' : ''">refresh</span>
             </button>
         </div>
-        <div v-else class="flex items-center gap-2">
-            <button @click="syncLocalFavoritesToJm" :disabled="auraSyncToJmLoading"
-                class="h-10 px-5 rounded-full bg-primary text-on-primary hover:bg-primary/90 transition font-bold shadow-sm flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed">
-                <span class="material-symbols-rounded text-[18px]" :class="auraSyncToJmLoading ? 'animate-spin' : ''">{{ auraSyncToJmLoading ? 'progress_activity' : 'sync' }}</span>
-                上传/同步到 JM
-            </button>
-            <button @click="loadAuraLibrary" :disabled="auraLibraryLoading" class="md-icon-btn bg-surface-container-high hover:bg-primary hover:text-on-primary rounded-full" title="刷新">
-                <span class="material-symbols-rounded" :class="auraLibraryLoading ? 'animate-spin' : ''">refresh</span>
-            </button>
-        </div>
     </div>
 
-    <div v-if="favsMode === 'jm' && !isLoggedIn" class="md-card p-8 text-center bg-surface-container">
+    <div v-if="!isLoggedIn" class="md-card p-8 text-center bg-surface-container">
         <span class="material-symbols-rounded text-6xl text-outline-variant mb-4">lock</span>
         <h3 class="headline-small text-on-surface mb-2">需要登录</h3>
-        <p class="text-body-medium text-on-surface-variant mb-6">请先登录 Aura 账号，再到设置中登录 JM 以管理收藏。</p>
-        <button @click="currentTab='config'" class="md-btn-primary">前往设置</button>
+        <p class="text-body-medium text-on-surface-variant mb-6">请先登录 JM 账号以管理收藏。</p>
+        <button @click="currentTab='config'" class="md-btn-primary">前往登录</button>
     </div>
 
-    <div v-else-if="favsMode === 'jm'" class="grid grid-cols-1 md:grid-cols-12 gap-6 md:gap-8">
+    <div v-else class="grid grid-cols-1 lg:grid-cols-12 gap-6 lg:gap-8">
         <!-- Sidebar: Folders -->
-        <div class="md:col-span-3 space-y-4">
-            <div class="md-card p-4 bg-surface-container-low border-0 sticky top-24">
+        <div class="lg:col-span-3 space-y-4">
+            <div class="md-card p-4 bg-surface-container-low border-0 lg:sticky lg:top-24">
                 <div class="flex items-center justify-between mb-4 px-2">
                     <div class="title-medium font-bold text-on-surface flex items-center gap-2">
                         <span class="material-symbols-rounded text-primary">folder_open</span>
@@ -113,7 +91,7 @@
         </div>
 
         <!-- Main Content -->
-        <div class="md:col-span-9 space-y-6">
+        <div class="lg:col-span-9 space-y-6">
             <!-- Toolbar -->
             <div class="flex flex-col gap-4">
                 <div class="flex items-center justify-between px-1">
@@ -134,7 +112,7 @@
                     </div>
                 </div>
 
-                <div class="md-card p-4 bg-surface-container-low border-0 flex flex-col md:flex-row gap-4 items-center">
+                <div class="md-card p-4 bg-surface-container-low border-0 flex flex-col lg:flex-row gap-4 items-center">
                     <!-- Search -->
                     <div class="flex-1 w-full md-input-container h-12 bg-surface-container px-4 rounded-full flex items-center gap-3 transition-colors focus-within:bg-surface-container-high ring-1 ring-transparent focus-within:ring-primary">
                         <span class="material-symbols-rounded text-on-surface-variant">search</span>
@@ -144,7 +122,7 @@
                     </div>
 
                     <!-- Batch Actions -->
-                    <div v-if="jmFavSelectionMode" class="flex items-center gap-2 w-full md:w-auto justify-end">
+                    <div v-if="jmFavSelectionMode" class="flex items-center gap-2 w-full lg:w-auto justify-end">
                         <button @click="toggleJmFavSelectAll" 
                             class="h-12 px-5 rounded-full bg-surface-container-high text-on-surface hover:bg-primary hover:text-on-primary transition font-medium flex items-center gap-2">
                             <span class="material-symbols-rounded text-[20px]">select_all</span>
@@ -176,7 +154,7 @@
                 <button @click="jmFavTitleFilter=''" class="mt-6 h-10 px-6 rounded-full bg-surface-variant hover:bg-primary hover:text-on-primary transition">清除筛选</button>
             </div>
 
-            <div v-if="jmFavFilteredItems.length > 0" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6">
+            <div v-if="jmFavFilteredItems.length > 0" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 lg:gap-6">
                 <div v-for="item in jmFavFilteredItems" :key="item.album_id"
                     class="md-card media-card md-card-hover overflow-hidden group flex flex-col h-full cursor-pointer relative bg-surface-container-low border-0"
                     :style="getCardAmbientStyle(item.album_id || item.title)"
@@ -240,78 +218,8 @@
         </div>
     </div>
 
-    <div v-else class="space-y-6">
-        <div v-if="!siteLoggedIn" class="md-card p-8 text-center bg-surface-container">
-            <span class="material-symbols-rounded text-6xl text-outline-variant mb-4">shield_person</span>
-            <h3 class="headline-small text-on-surface mb-2">需要登录 Aura 账号</h3>
-            <p class="text-body-medium text-on-surface-variant mb-6">Aura 书架会保存你的阅读历史、收藏夹与备注标签。</p>
-            <button @click="openSiteAuth('login')" class="md-btn-primary">登录/注册 Aura 账号</button>
-        </div>
-
-        <div v-else class="grid grid-cols-1 lg:grid-cols-12 gap-6 md:gap-8">
-            <div class="lg:col-span-7 space-y-6">
-                <div class="md-card p-6 bg-surface-container-low border-0">
-                    <div class="flex items-start justify-between gap-4 mb-5">
-                        <div class="min-w-0">
-                            <div class="title-large font-bold text-on-surface flex items-center gap-2">
-                                <span class="material-symbols-rounded text-primary">folder</span>
-                                Aura 收藏夹
-                            </div>
-                            <div class="text-sm text-on-surface-variant mt-1">用于手动归档（与 JM 官方收藏独立）</div>
-                        </div>
-                        <button @click="loadAuraLibrary" :disabled="auraLibraryLoading" class="w-10 h-10 rounded-full bg-surface-container-high hover:bg-primary hover:text-on-primary transition flex items-center justify-center">
-                            <span class="material-symbols-rounded" :class="auraLibraryLoading ? 'animate-spin' : ''">refresh</span>
-                        </button>
-                    </div>
-
-                    <div class="space-y-2">
-                        <div v-if="!auraLibrary?.folders || auraLibrary.folders.length === 0" class="p-5 rounded-[24px] bg-surface-container text-on-surface-variant">
-                            暂无收藏夹。可先创建一个。
-                        </div>
-                        <div v-else class="space-y-2">
-                            <div v-for="f in auraLibrary.folders" :key="f.id" class="p-4 rounded-[24px] bg-surface-container flex items-center justify-between gap-3">
-                                <div class="min-w-0">
-                                    <div class="font-bold text-on-surface truncate">{{ f.name }}</div>
-                                    <div class="text-xs text-on-surface-variant mt-1">{{ f.count || 0 }} 本</div>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div class="pt-2 flex items-center gap-2">
-                            <input v-model="auraNewFolderName" class="flex-1 px-4 py-3 rounded-2xl bg-surface-container-high outline-none ring-1 ring-outline-variant/20 focus:ring-primary/40 text-on-surface" placeholder="新收藏夹名称">
-                            <button @click="createAuraFolder" :disabled="auraFolderCreating" class="h-11 px-5 rounded-full bg-primary text-on-primary hover:bg-primary/90 transition font-bold">
-                                {{ auraFolderCreating ? '创建中…' : '创建' }}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="md-card p-6 bg-surface-container-low border-0">
-                    <div class="title-large font-bold text-on-surface flex items-center gap-2 mb-4">
-                        <span class="material-symbols-rounded text-primary">label</span>
-                        备注标签
-                    </div>
-                    <div class="text-sm text-on-surface-variant mb-4">也可在漫画详情页直接编辑当前专辑的 Aura 备注。</div>
-                    <div class="space-y-3">
-                        <input v-model="auraNoteAlbumId" class="w-full px-4 py-3 rounded-2xl bg-surface-container-high outline-none ring-1 ring-outline-variant/20 focus:ring-primary/40 text-on-surface" placeholder="专辑ID，例如 123456">
-                        <input v-model="auraNoteTags" class="w-full px-4 py-3 rounded-2xl bg-surface-container-high outline-none ring-1 ring-outline-variant/20 focus:ring-primary/40 text-on-surface" placeholder="标签（英文逗号分隔），例如：已看,想再看">
-                        <textarea v-model="auraNoteText" rows="3" class="w-full px-4 py-3 rounded-2xl bg-surface-container-high outline-none ring-1 ring-outline-variant/20 focus:ring-primary/40 text-on-surface" placeholder="备注"></textarea>
-                        <div class="flex justify-end gap-3">
-                            <button @click="loadAuraNoteForAlbum(auraNoteAlbumId)" class="h-10 px-5 rounded-full bg-surface-container-high hover:bg-surface-container transition font-medium text-on-surface">
-                                加载
-                            </button>
-                            <button @click="saveAuraNote" :disabled="auraNoteSaving" class="md-btn-primary h-10 px-6">
-                                {{ auraNoteSaving ? '保存中…' : '保存备注' }}
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- Modals (Create Folder) -->
-    <transition v-if="favsMode === 'jm'"
+    <transition
         enter-active-class="transition duration-200 ease-out"
         enter-from-class="opacity-0 translate-y-10 lg:translate-y-0 lg:scale-95"
         enter-to-class="opacity-100 translate-y-0 lg:scale-100"

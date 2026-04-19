@@ -52,8 +52,7 @@
             <div class="relative w-full min-h-[45vh] lg:min-h-[55vh] flex flex-col justify-end overflow-hidden group rounded-b-[32px] md:rounded-b-[48px] shadow-xl">
                 <!-- Parallax Background -->
                 <div class="absolute inset-0 select-none pointer-events-none z-0">
-                    <img v-if="selectedAlbum.image" :src="getImageUrl(selectedAlbum.image)"
-                         class="w-full h-full object-cover blur-3xl scale-125 opacity-60 dark:opacity-40">
+                    <div class="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.16),transparent_28%),radial-gradient(circle_at_bottom_right,rgba(156,65,70,0.18),transparent_30%)]"></div>
                     <div class="absolute inset-0 bg-gradient-to-t from-surface via-surface/60 to-transparent"></div>
                     <div class="absolute inset-0 bg-gradient-to-b from-black/20 to-transparent"></div>
                 </div>
@@ -96,19 +95,19 @@
                                 v-if="showDetailActionMenu"
                                 class="absolute top-full right-0 mt-3 min-w-[220px] rounded-[24px] bg-surface-container-high p-2 shadow-lg shadow-black/20 ring-1 ring-outline-variant/20 origin-top-right"
                             >
-                                <button
-                                    @click="showDetailActionMenu = false; confirmBlockAlbum()"
-                                    class="w-full flex items-center gap-3 px-4 py-3 rounded-[18px] text-left transition-colors bg-transparent text-on-surface hover:bg-error-container hover:text-on-error-container"
-                                >
-                                    <span class="material-symbols-rounded text-[20px]">block</span>
-                                    <span class="min-w-0">
-                                        <span class="block text-sm font-semibold tracking-tight">封杀此漫画</span>
-                                        <span class="block text-xs opacity-70 mt-0.5">将这本作品加入不再显示列表</span>
-                                    </span>
-                                </button>
-                            </div>
-                        </transition>
-                    </div>
+                                    <button
+                                        @click="showDetailActionMenu = false; confirmBlockAlbum()"
+                                        class="w-full flex items-center gap-3 px-4 py-3 rounded-[18px] text-left transition-colors bg-transparent text-on-surface hover:bg-error-container hover:text-on-error-container"
+                                    >
+                                        <span class="material-symbols-rounded text-[20px]">block</span>
+                                        <span class="min-w-0">
+                                            <span class="block text-sm font-semibold tracking-tight">封杀此漫画</span>
+                                            <span class="block text-xs opacity-70 mt-0.5">将这本作品加入不再显示列表</span>
+                                        </span>
+                                    </button>
+                                </div>
+                            </transition>
+                        </div>
                 </div>
 
                 <!-- Header Content (Bottom Aligned) -->

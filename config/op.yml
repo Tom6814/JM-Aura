@@ -1,0 +1,9 @@
+client:
+  domain: []
+  postman:
+    headers:
+      User-Agent: Mozilla/5.0
+    type: requests
+download:
+  image:
+    decode: true

@@ -10,3 +10,6 @@ urllib3>=2.0
 jmcomic>=2.4.3
 pillow>=10.0
 PyYAML>=6.0
+slowapi>=0.1.9
+keyring>=25.0
+keyrings.alt>=5.0

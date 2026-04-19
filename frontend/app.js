@@ -1,9 +1,12 @@
-const { createApp } = Vue
+const { createApp, markRaw } = Vue
+
+const MAX_READING_HISTORY_ENTRIES = 120;
+const JM_FAVORITE_SYNC_MAX_PAGES = 12;
 
 const DescrambledImage = {
     props: ['src', 'comicId', 'scrambleId', 'page', 'index'],
     template: `
-        <div class="w-full flex flex-col items-center justify-center p-0 m-0 leading-none" style="font-size: 0;" ref="container">
+        <div class="w-full flex justify-center min-h-[220px]" ref="container">
             <div v-if="state === 'idle'" class="w-full h-56 flex items-center justify-center bg-white/0 text-white/10">
                 <span class="material-symbols-rounded text-3xl">more_horiz</span>
             </div>
@@ -23,12 +26,11 @@ const DescrambledImage = {
                 </button>
             </div>
 
-            <canvas ref="canvas" class="w-full align-top" style="display: none; height: auto !important; margin: 0 !important; padding: 0 !important; vertical-align: top !important; line-height: 0 !important;"></canvas>
+            <canvas ref="canvas" class="w-full h-auto object-contain block" style="display: none;"></canvas>
             <img
                 v-if="state !== 'idle' && !needDescramble && state !== 'error'"
                 :src="displaySrc"
-                class="w-full align-top"
-                style="height: auto !important; margin: 0 !important; padding: 0 !important; display: block !important; vertical-align: top !important; line-height: 0 !important;"
+                class="w-full h-auto object-contain block"
                 alt="Page"
                 @load="onImgLoad"
                 @error="onImgError"
@@ -56,11 +58,16 @@ const DescrambledImage = {
     mounted() {
         this.checkLoad();
     },
+    unmounted() {
+        this.resetCanvas();
+        this.loadToken += 1;
+    },
     watch: {
         src() {
             this.loadingStarted = false;
             this.needDescramble = false;
             this.state = 'idle';
+            this.resetCanvas();
             this.checkLoad();
         },
         '$root.readerLoadLimit': {
@@ -71,6 +78,20 @@ const DescrambledImage = {
         }
     },
     methods: {
+        openDownloadChapterModal() {
+            this.showDownloadChapterModal = true;
+        },
+        resetCanvas() {
+            const canvas = this.$refs.canvas;
+            if (!canvas) return;
+            try {
+                const context = canvas.getContext('2d');
+                if (context) context.clearRect(0, 0, canvas.width, canvas.height);
+            } catch (e) {}
+            canvas.width = 0;
+            canvas.height = 0;
+            canvas.style.display = 'none';
+        },
         checkLoad() {
             if (this.loadingStarted) return;
             const idx = parseInt(this.index || 0);
@@ -124,6 +145,7 @@ const DescrambledImage = {
             this.needDescramble = true;
             const img = new Image();
             img.crossOrigin = "Anonymous";
+            img.decoding = 'async';
             const rawSrc = String(this.src || '');
             if (this.imgKey) {
                 const sep = rawSrc.includes('?') ? '&' : '?';
@@ -133,10 +155,23 @@ const DescrambledImage = {
             }
             
             img.onload = () => {
-                if (myToken !== this.loadToken) return;
-                this.cutImage(img, sliceCount);
-                this.state = 'done';
-                this.onFinish();
+                try {
+                    if (myToken !== this.loadToken) return;
+                    this.cutImage(img, sliceCount);
+                    this.state = 'done';
+                    this.onFinish();
+                } catch (e) {
+                    if (myToken !== this.loadToken) return;
+                    this.needDescramble = false;
+                    this.state = 'error';
+                    this.onFinish();
+                } finally {
+                    try {
+                        img.onload = null;
+                        img.onerror = null;
+                        img.src = '';
+                    } catch (e) {}
+                }
             };
             
             img.onerror = () => {
@@ -144,12 +179,19 @@ const DescrambledImage = {
                 this.needDescramble = false;
                 this.state = 'error';
                 this.onFinish();
+                try {
+                    img.onload = null;
+                    img.onerror = null;
+                    img.src = '';
+                } catch (e) {}
             };
         },
         retry() {
             if (!this.loadingStarted) return;
             this.imgKey += 1;
             this.state = 'loading';
+            this.loadingStarted = false;
+            this.resetCanvas();
             const canvas = this.$refs.canvas;
             if (canvas) canvas.style.display = 'none';
             this.startLoad();
@@ -201,7 +243,6 @@ const DescrambledImage = {
                 context.drawImage(image, 0, start, width, sliceH, 0, destY, width, sliceH);
                 destY += sliceH;
             }
-            
             canvas.style.display = 'block';
         }
     }
@@ -239,6 +280,9 @@ const CommentNode = {
         }
     },
     methods: {
+        openDownloadChapterModal() {
+            this.showDownloadChapterModal = true;
+        },
         onReply() {
             this.$emit('reply', this.node);
         },
@@ -371,6 +415,9 @@ const BookCard = {
     },
     emits: ['click'],
     methods: {
+        openDownloadChapterModal() {
+            this.showDownloadChapterModal = true;
+        },
         getCover() {
             if (this.book.coverUrl) return this.book.coverUrl;
             if (this.book.image) {
@@ -392,35 +439,34 @@ const BookCard = {
         getId() {
             return this.book.album_id || this.book.id || this.book._id;
         },
-        getCardStyle() {
-            return createCardAmbientStyle(this.getId() || this.getTitle());
-        },
         handleClick() {
             this.$emit('click', this.getId());
         }
     },
     template: `
-    <div class="md-card media-card cursor-pointer group flex flex-col h-full relative"
-         :style="getCardStyle()"
+    <div class="md-card cursor-pointer group flex flex-col h-full"
          @click="handleClick">
-        <div class="media-card-cover aspect-[3/4] overflow-hidden relative bg-surface-container-highest rounded-[inherit]">
-            <img :src="getCover()" class="w-full h-full object-cover transition-transform duration-300 ease-out" loading="lazy" alt="Cover">
+        <div class="aspect-[3/4] overflow-hidden relative bg-surface-container-high">
+            <img :src="getCover()" class="w-full h-full object-cover transition-transform duration-700" loading="lazy" alt="Cover">
             
-            <div class="media-card-state-layer absolute inset-0 bg-black/0 pointer-events-none"></div>
+            <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-4">
+                <span class="w-12 h-12 rounded-full bg-primary text-on-primary flex items-center justify-center shadow-xl transform translate-y-4 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-300 delay-100">
+                  <span class="material-symbols-rounded">arrow_outward</span>
+                </span>
+            </div>
             
             <div class="absolute top-2 right-2 flex flex-col items-end gap-1">
-                 <span v-if="book.status" class="media-card-status px-2 py-1 rounded-lg bg-surface-container text-[10px] text-on-surface font-bold shadow-sm uppercase tracking-wide">
+                 <span v-if="book.status" class="px-2 py-1 rounded-lg bg-black/60 backdrop-blur-md text-[10px] text-white font-bold shadow-sm uppercase tracking-wide">
                     {{ book.status }}
                  </span>
             </div>
         </div>
-        <div class="p-4 flex flex-col flex-1 gap-2 relative z-10 bg-surface-container-low">
-            <h3 class="media-card-title font-bold text-base line-clamp-2 leading-tight text-on-surface" :title="getTitle()">
+        <div class="p-4 flex flex-col flex-1 gap-2">
+            <h3 class="font-bold text-base line-clamp-2 leading-tight group-hover:text-primary transition-colors" :title="getTitle()">
                 {{ getTitle() }}
             </h3>
-            <div v-if="showAuthor" class="media-card-meta mt-auto flex items-center justify-between opacity-85">
-                <p class="text-xs truncate max-w-[100%] text-on-surface-variant flex items-center gap-1.5 font-medium">
-                    <span class="material-symbols-rounded text-[14px]">person</span>
+            <div v-if="showAuthor" class="mt-auto flex items-center justify-between opacity-70">
+                <p class="text-xs truncate max-w-[100%] text-on-surface-variant flex items-center gap-1">
                     {{ getAuthor() }}
                 </p>
             </div>
@@ -482,7 +528,7 @@ const PaginationControls = {
 const BLOCKED_PRESETS = {
     'ntr': {
         label: '屏蔽 NTR (推荐)',
-        keywords: ['ntr', '寝取', '寝取り', '寝取られ', 'netorare', 'cuckold', '네토라레', '绿帽', '戴绿帽', '人妻', '유부녀', 'hitodzuma', '你的妻子', '你的老婆', 'your wife', 'あなたの妻', '君の妻', '嫁', '당신의 아내', '네 아내', '夫妇', '夫妻', '夫婦', 'couple', 'married couple', 'ふうふ', 'めおと', '부부', '轮奸', '輪姦', 'gangbang', 'gang bang', 'rinKan', '윤간', '卖淫', '賣淫', 'prostitution', '매춘', '风俗', '風俗', 'fuzoku', '풍속', '援交', '援助交際', 'enjo kousai', 'enjou kousai', '원조교제', '妓女', '娼婦', 'whore', 'hooker', '창녀', '爸爸', '父亲', '父親', '爹', 'father', 'dad', 'daddy', 'お父さん', 'パパ', '아빠', '아버지', '妈妈', '母亲', '母親', '妈', 'mother', 'mom', 'mommy', 'お母さん', 'ママ', '엄마', '어머니', '妻子堕落', '妻の堕落', 'wife corruption', '아내의 타락', '堕落', '堕ち', 'corruption', '强奸', '強姦', 'rape', '강간', 'レイプ', '代价', '代價', 'daishou', 'price', '대가', '母子', 'mother and son', '母と息子', '모자', '父女', 'father and daughter', '父と娘', '부녀', '少妇', '少婦', 'young wife', '若妻', '젊은 아내', '碧池', 'bitch', 'ビッチ', '빗치', '育成', 'training', '육성', '换妻', '換妻', 'swapping', 'wife swapping', 'スワッピング', '부부교환', '交换', '交換', 'exchange', '교환']
+        keywords: ['ntr', '寝取', '寝取り', '寝取られ', 'netorare', 'cuckold', '네토라레', '绿帽', '戴绿帽', '人妻', '유부녀', 'hitodzuma', '轮奸', '輪姦', 'gangbang', 'gang bang', 'rinKan', '윤간', '卖淫', '賣淫', 'prostitution', '매춘', '风俗', '風俗', 'fuzoku', '풍속', '援交', '援助交際', 'enjo kousai', 'enjou kousai', '원조교제', '妓女', '娼婦', 'whore', 'hooker', '창녀', '爸爸', '父亲', '父親', '爹', 'father', 'dad', 'daddy', 'お父さん', 'パパ', '아빠', '아버지', '妈妈', '母亲', '母親', '妈', 'mother', 'mom', 'mommy', 'お母さん', 'ママ', '엄마', '어머니', '妻子堕落', '妻の堕落', 'wife corruption', '아내의 타락', '堕落', '堕ち', 'corruption', '强奸', '強姦', 'rape', 'rape', '강간', 'レイプ', '代价', '代價', 'daishou', 'price', '대가', '母子', 'mother and son', '母と息子', '모자', '父女', 'father and daughter', '父と娘', '부녀', '少妇', '少婦', 'young wife', '若妻', '젊은 아내', '碧池', 'bitch', 'ビッチ', '빗치', '育成', 'training', '육성', '换妻', '換妻', 'swapping', 'wife swapping', 'スワッピング', '부부교환', '交换', '交換', 'exchange', '교환']
     },
     'guro': {
         label: '屏蔽 猎奇/血腥 (Guro)',
@@ -506,26 +552,9 @@ const BLOCKED_PRESETS = {
     },
     'non_human': {
         label: '屏蔽 异种 (福瑞/触手/虫交)',
-        keywords: ['furry', 'tentacle', 'insect', '福瑞', '触手', '触手(てんたくる)', '虫交', '异种奸', '異種姦', 'ケモノ', '촉수', '수인', 'goblin', 'goblins', 'orc', 'orcs', 'monster', 'monster girl', '哥布林', '哥布林姦', '哥布林奸', '哥布林巢穴', '哥布林洞窟', '哥布林繁殖', '兽人', '獸人', '魔物', 'ゴブリン', 'ゴブリン姦', 'ゴブリン陵辱', 'ゴブリン巣穴', 'オーク', '魔物娘', '고블린', '고블린물', '고블린 둥지', '오크', '몬스터', '몬스터 걸']
+        keywords: ['furry', 'tentacle', 'insect', '福瑞', '触手', '触手(てんたくる)', '虫交', '异种奸', '異種姦', 'ケモノ', '촉수', '수인']
     }
 };
-
-function createCardAmbientStyle(seed) {
-    const raw = String(seed == null ? '' : seed);
-    let hash = 0;
-    for (let i = 0; i < raw.length; i++) {
-        hash = ((hash << 5) - hash + raw.charCodeAt(i)) | 0;
-    }
-    const baseHue = Math.abs(hash) % 360;
-    const accentHue = (baseHue + 34 + (Math.abs(hash) % 27)) % 360;
-    const glowHue = (baseHue + 12) % 360;
-    return {
-        '--media-card-ambient-1': `hsla(${baseHue}, 72%, 68%, 0.2)`,
-        '--media-card-ambient-2': `hsla(${accentHue}, 78%, 70%, 0.16)`,
-        '--media-card-ambient-3': `hsla(${glowHue}, 88%, 76%, 0.08)`,
-        '--media-card-shadow': `hsla(${baseHue}, 28%, 8%, 0.22)`
-    };
-}
 
 createApp({
     components: {
@@ -563,13 +592,21 @@ createApp({
             siteAuthOpen: false,
             siteAuthMode: 'login',
             siteAuthUsername: '',
+            siteAuthEmail: '',
             siteAuthPassword: '',
+            siteAuthPasswordConfirm: '',
+            siteAuthCaptcha: '',
+            siteAuthCaptchaUrl: '',
             siteAuthLoading: false,
             siteAuthMsg: '',
+            authBootstrapping: false,
             siteProfileLoading: false,
             siteProfileSaveTimer: null,
             hasSavedCredentials: false,
             jmBindingLoading: false,
+            jmReloginRunning: false,
+            jmReloginAttempt: 0,
+            jmReloginPromise: null,
             jmBinding: {
                 site_logged_in: false,
                 site_username: '',
@@ -597,7 +634,6 @@ createApp({
             jmAddLoading: false,
             searchQuery: '',
             showUserMenu: false,
-            showDetailActionMenu: false,
             topbarSearchQuery: '',
             topbarOverflowIds: [],
             topbarOverflowOpen: false,
@@ -655,6 +691,8 @@ createApp({
             selectedAlbum: null,
             currentPage: 1,
             readingChapter: null,
+            showDetailActionMenu: false,
+            showDownloadChapterModal: false,
             isDark: false,
             themeColor: 'pink',
             showReaderControls: true,
@@ -671,8 +709,8 @@ createApp({
             readerSettings: {
                 width: 100,
                 gap: 0,
-                initial: 4,
-                batch: 3
+                initial: 2,
+                batch: 2
             },
             homeScrollPos: 0,
             tabScrollPos: {},
@@ -695,15 +733,18 @@ createApp({
             confirmMessage: 'Are you sure?',
             confirmCallback: null,
             isSelectionMode: false,
-            showDownloadChapterModal: false,
             selectedChapters: [],
             showDownloadTaskModal: false,
             downloadTaskId: '',
             downloadTaskInfo: null,
             downloadTaskPoller: null,
 
-            readerLoadLimit: 4,
-            readerBatchEndIndex: 3,
+            readerLoadLimit: 2,
+            readerRenderStartIndex: 0,
+            readerBatchEndIndex: 1,
+            readerCurrentPageIndex: 0,
+            readerProgressSaveTimer: null,
+            readerRestorePageIndex: 0,
 
             jmCategories: [],
             jmCategoriesLoading: false,
@@ -864,12 +905,6 @@ createApp({
         } catch (e) {}
         this.initAccountFeatures();
         this.installApiReloginInterceptor();
-        this.checkLoginStatus().finally(() => {
-            this.tryAutoLogin();
-            if (this.isLoggedIn) {
-                this.loadAccountProfile();
-            }
-        });
         this.initTheme();
         this.initClientScope().finally(() => {
             this.loadReadingHistory();
@@ -878,13 +913,9 @@ createApp({
         });
         this.fetchHomeData();
         this.tryOpenAlbumFromUrl();
-        this.initSiteAuth().finally(() => {
-            if (this.siteLoggedIn) {
-                this.loadSiteProfile();
-                this.loadJmBinding();
-                this.loadAuraLibrary();
-            }
-        });
+        this.syncRouteFromUrl();
+        window.addEventListener("popstate", () => this.syncRouteFromUrl());
+        this.initSiteAuth();
         window.addEventListener('scroll', this.handleScroll);
         this.isOnline = navigator.onLine;
         window.addEventListener('online', this.handleOnlineStatus);
@@ -921,9 +952,24 @@ createApp({
             clearInterval(this.jmFavSyncTimer);
             this.jmFavSyncTimer = null;
         }
+        if (this.readerProgressSaveTimer) {
+            clearTimeout(this.readerProgressSaveTimer);
+            this.readerProgressSaveTimer = null;
+        }
     },
     watch: {
+        
+        
+        selectedAlbum() {
+            if (this.currentTab === 'detail') this.syncRouteToUrl(this.currentTab);
+        },
+        readingChapter() {
+            if (this.currentTab === 'reader') this.syncRouteToUrl(this.currentTab);
+        },
         currentTab(newVal, oldVal) {
+            this.syncRouteToUrl(newVal);
+            this.releaseHeavyTabData(newVal, oldVal);
+
             if (newVal !== 'home') {
                 this.homeTopbarVisible = false;
             }
@@ -1005,8 +1051,7 @@ createApp({
                 try {
                     localStorage.setItem(this.getStorageKey('readingHistory'), JSON.stringify(newVal));
                 } catch (e) {}
-            },
-            deep: true
+            }
         },
         'readerSettings.initial'(v) {
             try {
@@ -1020,9 +1065,265 @@ createApp({
         }
     },
     methods: {
-        getCardAmbientStyle(seed) {
-            return createCardAmbientStyle(seed);
+        openDownloadChapterModal() {
+            this.showDownloadChapterModal = true;
         },
+
+        syncRouteToUrl(tab) {
+            if (this._isPoppingState) return;
+            let path = '/';
+            if (tab === 'detail' && this.selectedAlbum) {
+                path = `/detail/${this.selectedAlbum.id || this.selectedAlbum.album_id}`;
+            } else if (tab === 'reader' && this.readingChapter) {
+                path = `/reader/${this.readingChapter.id || this.readingChapter.photo_id}`;
+            } else if (tab !== 'home') {
+                path = `/${tab.replace('jm_', '')}`;
+            }
+            const stateId = this.selectedAlbum?.id || this.selectedAlbum?.album_id;
+            const stateRid = this.readingChapter?.id || this.readingChapter?.photo_id;
+            if (window.location.pathname !== path) {
+                window.history.pushState({ tab, id: stateId, rid: stateRid }, '', path);
+            } else {
+                window.history.replaceState({ tab, id: stateId, rid: stateRid }, '', path);
+            }
+        },
+        syncRouteFromUrl() {
+            const path = window.location.pathname;
+            this._isPoppingState = true;
+            const state = window.history.state || {};
+            if (path.startsWith('/detail')) {
+                const id = path.split('/')[2] || state.id;
+                this.currentTab = 'detail';
+                if (id) this.viewDetails(id);
+            } else if (path.startsWith('/reader')) {
+                const id = path.split('/')[2] || state.rid;
+                this.currentTab = 'reader';
+                if (id) {
+                    this.startReading({ id, photo_id: id });
+                }
+            } else if (path === '/' || path === '/home') {
+                this.currentTab = 'home';
+            } else {
+                const tabMap = {
+                    '/history': 'jm_history',
+                    '/favorites': 'jm_favorites',
+                    '/latest': 'jm_latest',
+                    '/categories': 'jm_categories',
+                    '/leaderboard': 'jm_leaderboard',
+                    '/random': 'jm_random',
+                    '/search': 'search',
+                    '/config': 'config'
+                };
+                if (tabMap[path]) {
+                    this.currentTab = tabMap[path];
+                } else {
+                    this.currentTab = 'home';
+                }
+            }
+            setTimeout(() => { this._isPoppingState = false; }, 50);
+        },
+        getCardAmbientStyle(id) {
+            if (!id) return {};
+            let hash = 0;
+            for (let i = 0; i < String(id).length; i++) {
+                hash = String(id).charCodeAt(i) + ((hash << 5) - hash);
+            }
+            const hue = Math.abs(hash % 360);
+            return { '--card-ambient-color': `hsl(${hue}, 70%, 50%)` };
+        },
+        restoreHomeScroll() {
+            // Do nothing
+        },
+        releaseHeavyTabData(newVal, oldVal) {
+            const prev = String(oldVal || '');
+            const next = String(newVal || '');
+            if (prev === next) return;
+
+            if (prev === 'reader' && next !== 'reader') {
+                this.flushReadingProgress();
+                this.readingChapter = null;
+                this.readerCurrentPageIndex = 0;
+                this.readerRestorePageIndex = 0;
+                this.readerRenderStartIndex = 0;
+                this.readerLoadLimit = Math.max(1, parseInt((this.readerSettings && this.readerSettings.initial) ? this.readerSettings.initial : 2));
+                this.readerBatchEndIndex = Math.max(0, this.readerLoadLimit - 1);
+            }
+            if (prev === 'detail' && next !== 'detail' && next !== 'reader') {
+                this.selectedAlbum = null;
+                this.alsoViewedItems = [];
+                this.commentItems = [];
+                this.commentTree = [];
+                this.commentNodeById = {};
+            }
+            if (prev === 'jm_latest' && next !== 'jm_latest') this.jmLatestItems = [];
+            if (prev === 'jm_leaderboard' && next !== 'jm_leaderboard') this.jmLeaderboardItems = [];
+            if (prev === 'jm_categories' && next !== 'jm_categories') this.jmCategoryItems = [];
+            if (prev === 'jm_history' && next !== 'jm_history') this.jmHistoryItems = [];
+            if (prev === 'jm_favorites' && next !== 'jm_favorites') {
+                this.jmFavItems = [];
+                this.jmFavSelectedIds = [];
+                this.jmFavSelectionMode = false;
+            }
+            if (prev === 'search' && next !== 'search') this.searchResults = [];
+            if (prev === 'jm_random' && next !== 'jm_random') this.jmRandomPreview = [];
+            if ((prev === 'jm_history' || prev === 'jm_favorites') && next !== 'jm_history' && next !== 'jm_favorites') {
+                this.auraLibrary = { history: [], folders: [] };
+            }
+        },
+        compactReadingHistory(nextHistory) {
+            const entries = Object.entries(nextHistory || {});
+            if (entries.length <= MAX_READING_HISTORY_ENTRIES) return nextHistory;
+            entries.sort((a, b) => Number((b[1] && b[1].timestamp) || 0) - Number((a[1] && a[1].timestamp) || 0));
+            return Object.fromEntries(entries.slice(0, MAX_READING_HISTORY_ENTRIES));
+        },
+        findAuraHistory(albumId) {
+            const aid = String(albumId || '').trim();
+            if (!aid) return null;
+            const items = this.auraLibrary && Array.isArray(this.auraLibrary.history) ? this.auraLibrary.history : [];
+            return items.find(it => String(it && it.album_id ? it.album_id : '') === aid) || null;
+        },
+        getResumeHistory(albumId) {
+            const aid = String(albumId || '').trim();
+            if (!aid) return null;
+            if (this.siteLoggedIn) {
+                const cloud = this.findAuraHistory(aid);
+                if (cloud && cloud.photo_id) return cloud;
+            }
+            return this.readingHistory && this.readingHistory[aid] ? this.readingHistory[aid] : null;
+        },
+        async fetchAuraResumeHistory(albumId) {
+            const aid = String(albumId || '').trim();
+            if (!aid || !this.siteLoggedIn) return null;
+            try {
+                const res = await fetch('/api/aura/library/history?limit=120');
+                const json = await res.json().catch(() => ({}));
+                if (!res.ok || (json.st && json.st !== 1001)) return null;
+                const items = Array.isArray(json.data) ? json.data : [];
+                if (items.length) {
+                    this.auraLibrary = {
+                        ...(this.auraLibrary || {}),
+                        history: items,
+                        folders: Array.isArray(this.auraLibrary && this.auraLibrary.folders) ? this.auraLibrary.folders : []
+                    };
+                }
+                return items.find(it => String(it && it.album_id ? it.album_id : '') === aid) || null;
+            } catch (e) {
+                return null;
+            }
+        },
+        upsertAuraHistoryLocal(record) {
+            if (!record || !record.album_id) return;
+            const aid = String(record.album_id);
+            const history = Array.isArray(this.auraLibrary && this.auraLibrary.history) ? [...this.auraLibrary.history] : [];
+            const next = {
+                album_id: aid,
+                album_title: String(record.album_title || ''),
+                photo_id: String(record.photo_id || ''),
+                title: String(record.title || ''),
+                page_index: Math.max(0, parseInt(record.page_index || 0)),
+                timestamp: Number(record.timestamp || Date.now())
+            };
+            const idx = history.findIndex(it => String(it && it.album_id ? it.album_id : '') === aid);
+            if (idx >= 0) history.splice(idx, 1);
+            history.unshift(next);
+            this.auraLibrary = {
+                ...(this.auraLibrary || {}),
+                history: history.slice(0, 120),
+                folders: Array.isArray(this.auraLibrary && this.auraLibrary.folders) ? this.auraLibrary.folders : []
+            };
+        },
+        buildReadingProgressRecord(pageIndex) {
+            if (!this.selectedAlbum || !this.readingChapter) return null;
+            return {
+                album_id: String(this.selectedAlbum.album_id || ''),
+                album_title: String(this.selectedAlbum.title || ''),
+                photo_id: String(this.readingChapter.photo_id || this.readingChapter.id || ''),
+                title: String(this.readingChapter.name || this.readingChapter.title || ''),
+                page_index: Math.max(0, parseInt(pageIndex || 0)),
+                timestamp: Date.now()
+            };
+        },
+        persistReadingProgress(pageIndex, forceRemote = false) {
+            const record = this.buildReadingProgressRecord(pageIndex);
+            if (!record || !record.album_id || !record.photo_id) return;
+            const prev = this.readingHistory && this.readingHistory[record.album_id] ? this.readingHistory[record.album_id] : null;
+            const unchanged = !!prev &&
+                String(prev.photo_id || '') === record.photo_id &&
+                Math.max(0, parseInt(prev.page_index || 0)) === record.page_index &&
+                !forceRemote;
+            this.readerCurrentPageIndex = record.page_index;
+            if (!unchanged) {
+                this.readingHistory = this.compactReadingHistory({
+                    ...(this.readingHistory || {}),
+                    [record.album_id]: record
+                });
+                if (this.siteLoggedIn) this.upsertAuraHistoryLocal(record);
+            }
+            if (!this.siteLoggedIn) return;
+            try {
+                fetch('/api/aura/library/history', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(record)
+                }).catch(() => {});
+            } catch (e) {}
+        },
+        getCurrentReaderPageIndex(el) {
+            const root = el || this.$refs.readerRoot;
+            if (!root) return 0;
+            const nodes = root.querySelectorAll('[data-reader-page-index]');
+            if (!nodes || !nodes.length) return 0;
+            const threshold = Number(root.scrollTop || 0) + Number(root.clientHeight || 0) * 0.35;
+            let current = 0;
+            for (const node of nodes) {
+                const top = Number(node.offsetTop || 0);
+                const idx = Math.max(0, parseInt(node.getAttribute('data-reader-page-index') || '0'));
+                if (top <= threshold) current = idx;
+                else break;
+            }
+            return current;
+        },
+        scheduleReadingProgressSave(el) {
+            if (!this.readingChapter) return;
+            if (this.readerProgressSaveTimer) {
+                clearTimeout(this.readerProgressSaveTimer);
+                this.readerProgressSaveTimer = null;
+            }
+            const root = el || this.$refs.readerRoot;
+            this.readerProgressSaveTimer = setTimeout(() => {
+                this.readerProgressSaveTimer = null;
+                const idx = this.getCurrentReaderPageIndex(root);
+                this.persistReadingProgress(idx);
+            }, 180);
+        },
+        flushReadingProgress() {
+            if (this.readerProgressSaveTimer) {
+                clearTimeout(this.readerProgressSaveTimer);
+                this.readerProgressSaveTimer = null;
+            }
+            if (!this.readingChapter) return;
+            const idx = this.getCurrentReaderPageIndex(this.$refs.readerRoot);
+            this.persistReadingProgress(idx, true);
+        },
+        async restoreReaderPosition(pageIndex) {
+            const target = Math.max(0, parseInt(pageIndex || 0));
+            this.readerRestorePageIndex = target;
+            if (!target) return;
+            await this.$nextTick();
+            requestAnimationFrame(() => {
+                const root = this.$refs.readerRoot;
+                if (!root) return;
+                const node = root.querySelector(`[data-reader-page-index="${target}"]`);
+                if (!node) return;
+                try {
+                    root.scrollTo({ top: Math.max(0, Number(node.offsetTop || 0) - 12), behavior: 'auto' });
+                } catch (e) {
+                    root.scrollTop = Math.max(0, Number(node.offsetTop || 0) - 12);
+                }
+                this.readerCurrentPageIndex = target;
+            });
+        },
+
         syncNavClass() {
             try {
                 const has = String(this.currentTab || '') !== 'reader';
@@ -1031,6 +1332,7 @@ createApp({
         },
         handleVisibilityChange() {
             try {
+                if (this.siteAuthOpen || this.siteAuthLoading || this.jmReloginRunning || this.authBootstrapping) return;
                 if (document.visibilityState === 'visible') {
                     this.startJmFavSync();
                     this.syncJmFavoritesRealtime(true);
@@ -1041,6 +1343,8 @@ createApp({
         },
         startJmFavSync() {
             if (!this.isLoggedIn || this.source !== 'jm') return;
+            if (this.siteAuthOpen || this.siteAuthLoading || this.jmReloginRunning || this.authBootstrapping) return;
+            if (!this.jmBinding || !this.jmBinding.jm_logged_in) return;
             if (!this.isOnline) return;
             try {
                 if (document && document.visibilityState && document.visibilityState !== 'visible') return;
@@ -1060,12 +1364,14 @@ createApp({
         },
         async syncJmFavoritesRealtime(force = false) {
             if (!this.isLoggedIn || this.source !== 'jm') return;
+            if (this.siteAuthOpen || this.siteAuthLoading || this.jmReloginRunning || this.authBootstrapping) return;
+            if (!this.jmBinding || !this.jmBinding.jm_logged_in) return;
             if (this.jmFavSyncing) return;
             const now = Date.now();
             if (!force && now - Number(this.jmFavLastSyncAt || 0) < this.jmFavSyncIntervalMs - 1000) return;
             this.jmFavSyncing = true;
             try {
-                const res = await fetch(`/api/favorites/sync?max_pages=30&folder_id=0`);
+                const res = await fetch(`/api/favorites/sync?max_pages=${JM_FAVORITE_SYNC_MAX_PAGES}&folder_id=0`);
                 const json = await res.json().catch(() => ({}));
                 if (!res.ok || (json.st && json.st !== 1001)) {
                     throw new Error(json.msg || json.detail || 'Sync failed');
@@ -1103,6 +1409,9 @@ createApp({
                 }
                 this.jmFavLastSyncAt = Date.now();
             } catch (e) {
+                if (!(e && (e.name === 'AbortError' || String(e.message || '').includes('ERR_ABORTED')))) {
+                    console.warn('syncJmFavoritesRealtime failed:', e && e.message ? e.message : e);
+                }
             } finally {
                 this.jmFavSyncing = false;
             }
@@ -1179,7 +1488,6 @@ createApp({
                 const t = e && e.target ? e.target : null;
                 if (!t || !t.closest) {
                     this.showUserMenu = false;
-                    this.showDetailActionMenu = false;
                     this.topbarOverflowOpen = false;
                     this.topbarSearchDropdownOpen = false;
                     return;
@@ -1189,10 +1497,6 @@ createApp({
                     return;
                 }
                 const nav = t.closest('[data-topbar-root="1"]');
-                const detailActionMenu = t.closest('[data-detail-topbar-actions="1"]');
-                if (!detailActionMenu) {
-                    this.showDetailActionMenu = false;
-                }
                 if (!nav) {
                     this.showUserMenu = false;
                     this.topbarOverflowOpen = false;
@@ -1400,16 +1704,11 @@ createApp({
                         const features = self.accountFeatures || {};
                         if (!features.autoLogin) return false;
                         if (!self.siteLoggedIn) return false;
-                        const res = await originalFetch('/api/session/relogin', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({})
-                        });
-                        const json = await res.json().catch(() => ({}));
-                        if (!res.ok) return false;
-                        if (json && typeof json === 'object' && json.st && Number(json.st) !== 1001) return false;
-                        self.isLoggedIn = true;
-                        return true;
+                        const result = await self.reloginJmAccountWithRetry(4, 1000, true, 'JM 登录失败，已自动退出');
+                        await self.loadJmBindingStatus();
+                        const ok = !!(result && result.ok && self.jmBinding && self.jmBinding.jm_logged_in);
+                        self.isLoggedIn = ok;
+                        return ok;
                     } catch (e) {
                         return false;
                     } finally {
@@ -1436,9 +1735,38 @@ createApp({
             const m = String(mode || '').toLowerCase();
             this.siteAuthMode = m === 'register' ? 'register' : 'login';
             this.siteAuthMsg = '';
+            if (this.siteAuthMode === 'register') {
+                this.siteAuthEmail = '';
+                this.siteAuthPasswordConfirm = '';
+                this.siteAuthCaptcha = '';
+                this.refreshSiteAuthCaptcha();
+            }
             this.siteAuthOpen = true;
         },
+        async refreshSiteAuthCaptcha() {
+            try {
+                const res = await fetch('/api/jm/register/captcha');
+                if (!res.ok) {
+                    const j = await res.json().catch(() => ({}));
+                    throw new Error(j.msg || j.detail || '获取验证码失败');
+                }
+                const contentType = String(res.headers.get('content-type') || '').toLowerCase();
+                if (!contentType.startsWith('image/')) {
+                    const text = await res.text().catch(() => '');
+                    throw new Error(text || '验证码返回格式异常');
+                }
+                const blob = await res.blob();
+                try {
+                    if (this.siteAuthCaptchaUrl) URL.revokeObjectURL(this.siteAuthCaptchaUrl);
+                } catch (e) {}
+                this.siteAuthCaptchaUrl = URL.createObjectURL(blob);
+            } catch (e) {
+                this.siteAuthCaptchaUrl = '';
+                this.siteAuthMsg = e && e.message ? String(e.message) : '获取验证码失败';
+            }
+        },
         async initSiteAuth() {
+            this.authBootstrapping = true;
             try {
                 const st = await fetch('/api/site/status');
                 const sj = await st.json().catch(() => ({}));
@@ -1463,11 +1791,19 @@ createApp({
                 // We also need to load site profile first to get user's autoLogin settings
                 await this.loadSiteProfile();
                 
-                // If the user has saved accounts and has autoLogin enabled, try to relogin
-                if (this.jmBinding.has_saved_credentials && this.accountFeatures.autoLogin && !this.jmBinding.jm_logged_in) {
-                    const success = await this.reloginJmAccount();
-                    if (success) {
-                        this.showToast('已自动恢复 JM 登录', 'success');
+                // JM 会话必须有效；否则这份影子会话也应该同步失效
+                if (!this.jmBinding.jm_logged_in) {
+                    if (this.jmBinding.has_saved_credentials) {
+                        const result = await this.reloginJmAccountWithRetry(4, 1000, true, 'JM 用户名/密码错误或会话已失效，请重新登录');
+                        if (result.ok) {
+                            this.showToast('已自动恢复 JM 登录', 'success');
+                            return;
+                        }
+                        return;
+                    }
+                    if (this.accountFeatures.autoLogin) {
+                        await this.forceJmLinkedLogout('未找到可用的 JM 登录凭据，请重新登录');
+                        return;
                     }
                 }
                 
@@ -1476,6 +1812,8 @@ createApp({
                 this.siteLoggedIn = false;
                 this.siteUser = '';
                 this.loadBlockSettings(); // Reset to guest settings
+            } finally {
+                this.authBootstrapping = false;
             }
         },
         async loadSiteProfile() {
@@ -1544,12 +1882,35 @@ createApp({
             }).catch(() => {});
         },
         async loadJmBindingStatus() {
+            if (!this.siteLoggedIn) {
+                this.jmBinding = {
+                    site_logged_in: false,
+                    site_username: '',
+                    can_save_credentials: false,
+                    has_saved_credentials: false,
+                    saved_jm_username: '',
+                    jm_logged_in: false,
+                    jm_username: ''
+                };
+                return;
+            }
             if (this.jmBindingLoading) return;
             this.jmBindingLoading = true;
             try {
                 const res = await fetch('/api/jm/binding');
                 const json = await res.json().catch(() => ({}));
-                if (!res.ok || (json.st && json.st !== 1001)) return;
+                if (!res.ok || (json.st && json.st !== 1001)) {
+                    this.jmBinding = {
+                        site_logged_in: false,
+                        site_username: '',
+                        can_save_credentials: false,
+                        has_saved_credentials: false,
+                        saved_jm_username: '',
+                        jm_logged_in: false,
+                        jm_username: ''
+                    };
+                    return;
+                }
                 const d = json.data && typeof json.data === 'object' ? json.data : {};
                 this.jmBinding = {
                     site_logged_in: !!d.site_logged_in,
@@ -1561,9 +1922,49 @@ createApp({
                     jm_username: String(d.jm_username || '')
                 };
             } catch (e) {
+                this.jmBinding = {
+                    site_logged_in: false,
+                    site_username: '',
+                    can_save_credentials: false,
+                    has_saved_credentials: false,
+                    saved_jm_username: '',
+                    jm_logged_in: false,
+                    jm_username: ''
+                };
             } finally {
                 this.jmBindingLoading = false;
             }
+        },
+        async forceJmLinkedLogout(message) {
+            try {
+                await fetch('/api/site/logout', { method: 'POST' });
+            } catch (e) {}
+            this.stopJmFavSync();
+            this.authBootstrapping = false;
+            this.siteAuthLoading = false;
+            this.siteLoggedIn = false;
+            this.siteUser = '';
+            this.isLoggedIn = false;
+            this.hasSavedCredentials = false;
+            this.accountProfile = null;
+            this.jmBinding = {
+                site_logged_in: false,
+                site_username: '',
+                can_save_credentials: true,
+                has_saved_credentials: false,
+                saved_jm_username: '',
+                jm_logged_in: false,
+                jm_username: ''
+            };
+            this.jmAccounts = { active: '', accounts: [] };
+            this.loadAuraLibrary();
+            if (message) this.showToast(String(message), 'error');
+            this.siteAuthMode = 'login';
+            this.siteAuthOpen = true;
+            this.siteAuthMsg = String(message || '');
+        },
+        sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, Math.max(0, parseInt(ms || 0))));
         },
         async reloginJmAccount() {
             try {
@@ -1575,17 +1976,79 @@ createApp({
                 const json = await res.json().catch(() => ({}));
                 if (!res.ok || (json.st && json.st !== 1001)) {
                     this.isLoggedIn = false;
-                    return false;
+                    return {
+                        ok: false,
+                        msg: String((json && (json.msg || json.detail)) || 'JM 登录失败')
+                    };
                 }
-                this.isLoggedIn = true;
-                this.loadJmBindingStatus();
-                this.loadJmBinding();
+                await this.loadJmBindingStatus();
+                this.isLoggedIn = !!(this.jmBinding && this.jmBinding.jm_logged_in);
+                if (!this.isLoggedIn) {
+                    return {
+                        ok: false,
+                        msg: 'JM 登录失败，当前会话未建立'
+                    };
+                }
                 this.loadAccountProfile();
-                return true;
+                return { ok: true, msg: '' };
             } catch (e) {
                 this.isLoggedIn = false;
+                return {
+                    ok: false,
+                    msg: e && e.message ? String(e.message) : 'JM 登录失败'
+                };
+            }
+        },
+        async reloginJmAccountWithRetry(maxRetries = 4, retryDelayMs = 1000, logoutOnFailure = true, failureMessage = '') {
+            if (this.jmReloginPromise) return this.jmReloginPromise;
+            this.jmReloginPromise = (async () => {
+                this.jmReloginRunning = true;
+                this.jmReloginAttempt = 0;
+                let last = { ok: false, msg: 'JM 登录失败' };
+                const retries = Math.max(0, parseInt(maxRetries || 0));
+                for (let attempt = 0; attempt <= retries; attempt += 1) {
+                    this.jmReloginAttempt = attempt + 1;
+                    last = await this.reloginJmAccount();
+                    if (last.ok) return last;
+                    if (attempt < retries) {
+                        await this.sleep(retryDelayMs);
+                    }
+                }
+                if (logoutOnFailure) {
+                    await this.forceJmLinkedLogout(failureMessage || last.msg || 'JM 登录失败，已自动退出');
+                }
+                return last;
+            })();
+            try {
+                return await this.jmReloginPromise;
+            } finally {
+                this.jmReloginRunning = false;
+                this.jmReloginAttempt = 0;
+                this.jmReloginPromise = null;
+            }
+        },
+        async ensureJmSessionReady(showError = true) {
+            if (!this.siteLoggedIn) {
+                if (showError) this.showToast('请先登录 JM 账号', 'error');
                 return false;
             }
+            await this.loadJmBindingStatus();
+            if (this.jmBinding && this.jmBinding.jm_logged_in) {
+                this.isLoggedIn = true;
+                return true;
+            }
+            if (this.jmBinding && this.jmBinding.has_saved_credentials) {
+                const result = await this.reloginJmAccountWithRetry(4, 1000, true, 'JM 登录失败，已自动退出');
+                await this.loadJmBindingStatus();
+                this.isLoggedIn = !!(this.jmBinding && this.jmBinding.jm_logged_in);
+                if (result.ok && this.isLoggedIn) return true;
+                return false;
+            }
+            this.isLoggedIn = false;
+            if (showError) {
+                await this.forceJmLinkedLogout('JM 登录已失效，请重新输入用户名和密码');
+            }
+            return false;
         },
         async unbindJmAccount() {
             try {
@@ -1760,7 +2223,7 @@ createApp({
                 if (!res.ok || (json.st && json.st !== 1001)) {
                     throw new Error(json.msg || json.detail || '添加失败');
                 }
-                this.showToast(`已加入 Aura 收藏夹：${String(folderName || '').trim() || 'OK'}`, 'success');
+                this.showToast(`已加入收藏夹：${String(folderName || '').trim() || 'OK'}`, 'success');
                 this.loadAuraLibrary();
             } catch (e) {
                 this.showToast(e && e.message ? e.message : '添加失败', 'error');
@@ -1856,7 +2319,7 @@ createApp({
                     throw new Error(json.msg || json.detail || '创建失败');
                 }
                 this.auraNewFolderName = '';
-                this.showToast('已创建 Aura 收藏夹', 'success');
+                this.showToast('已创建收藏夹', 'success');
                 this.loadAuraLibrary();
             } catch (e) {
                 this.showToast(e && e.message ? e.message : '创建失败', 'error');
@@ -1891,7 +2354,7 @@ createApp({
                 if (!res.ok || (json.st && json.st !== 1001)) {
                     throw new Error(json.msg || json.detail || '保存失败');
                 }
-                this.showToast('已保存 Aura 备注', 'success');
+                this.showToast('已保存备注', 'success');
             } catch (e) {
                 this.showToast(e && e.message ? e.message : '保存失败', 'error');
             } finally {
@@ -1903,40 +2366,128 @@ createApp({
             this.siteAuthMsg = '';
             const u = String(this.siteAuthUsername || '').trim();
             const p = String(this.siteAuthPassword || '');
+            const isRegister = this.siteAuthMode === 'register';
             if (!u || !p) {
                 this.siteAuthMsg = '请输入用户名和密码';
                 return;
             }
+            if (isRegister) {
+                const email = String(this.siteAuthEmail || '').trim();
+                const p2 = String(this.siteAuthPasswordConfirm || '');
+                const captcha = String(this.siteAuthCaptcha || '').trim();
+                if (!email) {
+                    this.siteAuthMsg = '请输入邮箱';
+                    return;
+                }
+                if (!p2) {
+                    this.siteAuthMsg = '请再次输入密码';
+                    return;
+                }
+                if (p !== p2) {
+                    this.siteAuthMsg = '两次密码不一致';
+                    return;
+                }
+                if (!captcha) {
+                    this.siteAuthMsg = '请输入验证码';
+                    return;
+                }
+            }
             this.siteAuthLoading = true;
             try {
-                const url = this.siteAuthMode === 'register' ? '/api/site/register' : '/api/site/login';
-                const res = await fetch(url, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username: u, password: p })
-                });
-                const json = await res.json().catch(() => ({}));
+                let res;
+                if (isRegister) {
+                    res = await fetch('/api/jm/register', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            username: u,
+                            email: String(this.siteAuthEmail || '').trim(),
+                            password: p,
+                            password_confirm: String(this.siteAuthPasswordConfirm || ''),
+                            gender: 'Male',
+                            verification: String(this.siteAuthCaptcha || '').trim()
+                        })
+                    });
+                } else {
+                    res = await fetch('/api/site/login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username: u, password: p })
+                    });
+                }
+                const rawText = await res.text().catch(() => '');
+                let json = {};
+                try {
+                    json = rawText ? JSON.parse(rawText) : {};
+                } catch (e) {}
                 if (!res.ok || (json.st && json.st !== 1001)) {
-                    this.siteAuthMsg = String(json.msg || json.detail || '登录失败');
+                    let msg = json && (json.msg || json.detail) ? (json.msg || json.detail) : '';
+                    if (Array.isArray(msg)) {
+                        msg = msg.map(it => {
+                            if (!it || typeof it !== 'object') return String(it || '');
+                            return String(it.msg || it.message || it.type || JSON.stringify(it));
+                        }).filter(Boolean).join('; ');
+                    } else if (msg && typeof msg === 'object') {
+                        msg = String(msg.msg || msg.message || JSON.stringify(msg));
+                    }
+                    if (!msg && rawText) msg = rawText;
+                    this.siteAuthMsg = String(msg || (isRegister ? '注册失败' : '登录失败'));
+                    if (isRegister) {
+                        this.refreshSiteAuthCaptcha().catch(() => {});
+                    }
+                    return;
+                }
+                if (isRegister) {
+                    const loginRes = await fetch('/api/site/login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ username: u, password: p })
+                    });
+                    const loginText = await loginRes.text().catch(() => '');
+                    let loginJson = {};
+                    try {
+                        loginJson = loginText ? JSON.parse(loginText) : {};
+                    } catch (e) {}
+                    if (!loginRes.ok || (loginJson.st && loginJson.st !== 1001)) {
+                        this.siteAuthMsg = String((loginJson && (loginJson.msg || loginJson.detail)) || '注册成功，但自动登录失败，请手动登录');
+                        this.siteAuthMode = 'login';
+                        return;
+                    }
+                }
+                const meRes = await fetch('/api/site/me', { credentials: 'same-origin' });
+                const meText = await meRes.text().catch(() => '');
+                let meJson = {};
+                try {
+                    meJson = meText ? JSON.parse(meText) : {};
+                } catch (e) {}
+                if (!meRes.ok || !meJson || !meJson.data || !meJson.data.username) {
+                    this.siteLoggedIn = false;
+                    this.siteUser = '';
+                    this.siteAuthMsg = '登录接口返回成功，但会话未建立成功，请检查 Cookie / HTTPS / 反向代理配置';
                     return;
                 }
                 this.siteLoggedIn = true;
-                this.siteUser = u;
+                this.siteUser = String(meJson.data.username || u);
+                this.loadSavedCredentialsMeta();
+                await this.loadSiteProfile();
+                await this.loadJmBindingStatus();
+                this.loadJmAccounts();
+                this.loadAuraLibrary();
+                if (!(this.jmBinding && this.jmBinding.jm_logged_in)) {
+                    const result = await this.reloginJmAccountWithRetry(4, 1000, true, 'JM 用户名或密码错误，请重新登录');
+                    await this.loadJmBindingStatus();
+                    this.isLoggedIn = !!(result && result.ok && this.jmBinding && this.jmBinding.jm_logged_in);
+                    if (!this.isLoggedIn) return;
+                } else {
+                    this.isLoggedIn = true;
+                }
                 this.siteAuthPassword = '';
                 this.siteAuthMsg = '';
                 this.siteAuthOpen = false;
-                this.loadSavedCredentialsMeta();
-                this.loadSiteProfile();
-                this.loadJmBindingStatus();
-                this.loadJmAccounts();
-                this.loadAuraLibrary();
-                this.checkLoginStatus().finally(() => {
-                    if (this.isLoggedIn) {
-                        this.loadAccountProfile();
-                    }
-                });
+                this.loadAccountProfile();
+                this.startJmFavSync();
             } catch (e) {
-                this.siteAuthMsg = '登录失败';
+                this.siteAuthMsg = e && e.message ? String(e.message) : (isRegister ? '注册失败' : '登录失败');
             } finally {
                 this.siteAuthLoading = false;
             }
@@ -1945,11 +2496,29 @@ createApp({
             try {
                 await fetch('/api/site/logout', { method: 'POST' });
             } catch (e) {}
+            this.stopJmFavSync();
+            this.authBootstrapping = false;
+            this.siteAuthLoading = false;
+            this.siteAuthOpen = false;
+            this.siteAuthMsg = '';
             this.siteLoggedIn = false;
             this.siteUser = '';
             this.hasSavedCredentials = false;
-            this.loadJmBindingStatus();
-            this.loadJmAccounts();
+            this.isLoggedIn = false;
+            this.accountProfile = null;
+            this.accountSignature = '';
+            this.accountAvatarFailed = false;
+            this.jmBinding = {
+                site_logged_in: false,
+                site_username: '',
+                can_save_credentials: false,
+                has_saved_credentials: false,
+                saved_jm_username: '',
+                jm_logged_in: false,
+                jm_username: ''
+            };
+            this.jmAccounts = { active: '', accounts: [] };
+            this.loadBlockSettings();
             this.loadAuraLibrary();
         },
         loadBlockSettings() {
@@ -2195,20 +2764,20 @@ createApp({
         },
         tryAutoLogin() {
             if (this.isLoggedIn) return;
+            if (this.authBootstrapping || this.siteAuthLoading || this.jmReloginRunning) return;
             if (!this.accountFeatures || !this.accountFeatures.autoLogin) return;
             if (!this.siteLoggedIn) return;
             if (this.loginLoading) return;
             this.loginLoading = true;
-            fetch('/api/session/relogin', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) })
-                .then(r => r.json().catch(() => ({})).then(j => ({ r, j })))
-                .then(({ r, j }) => {
-                    if (!r.ok || (j && j.st && Number(j.st) !== 1001)) return;
-                    this.checkLoginStatus().finally(() => {
-                        this.loadAccountProfile();
-                        if (this.isLoggedIn && this.accountFeatures && this.accountFeatures.autoCheckin) {
-                            this.accountCheckin();
-                        }
-                    });
+            this.reloginJmAccountWithRetry(4, 1000, true, 'JM 用户名/密码错误，请重新登录')
+                .then(async (result) => {
+                    await this.loadJmBindingStatus();
+                    this.isLoggedIn = !!(result && result.ok && this.jmBinding && this.jmBinding.jm_logged_in);
+                    if (!this.isLoggedIn) return;
+                    this.loadAccountProfile();
+                    if (this.accountFeatures && this.accountFeatures.autoCheckin) {
+                        this.accountCheckin();
+                    }
                 })
                 .catch(() => {})
                 .finally(() => { this.loginLoading = false; });
@@ -2314,7 +2883,7 @@ createApp({
                 const raw = Array.isArray(json.data) ? json.data : [];
                 const filtered = raw.filter(x => this.getJmCategoryId(x) !== '0');
                 const list = [{ id: '0', slug: '0', name: '全部', title: '全部' }].concat(filtered);
-                this.jmCategories = Vue.markRaw(list);
+                this.jmCategories = markRaw(list);
             } catch (e) {
                 this.jmCategoriesError = String(e && e.message ? e.message : 'Failed to load categories');
                 this.showToast(this.jmCategoriesError, 'error');
@@ -2377,8 +2946,7 @@ createApp({
                     album_id: x.comic_id,
                     title: x.title,
                     author: this.formatAuthor(x.author),
-                    image: x.cover_url,
-                    raw: x
+                    image: x.cover_url
                 })).filter(x => x.album_id && !this.isAlbumBlocked(x));
                 if (append) {
                     if (!mapped.length) {
@@ -2387,11 +2955,11 @@ createApp({
                         const dedup = new Map();
                         for (const it of (this.jmLatestItems || [])) dedup.set(String(it.album_id), it);
                         for (const it of mapped) dedup.set(String(it.album_id), it);
-                        this.jmLatestItems = Vue.markRaw(Array.from(dedup.values()));
+                        this.jmLatestItems = Array.from(dedup.values());
                     }
                 } else {
                     this.jmLatestHasMore = true;
-                    this.jmLatestItems = Vue.markRaw(mapped);
+                    this.jmLatestItems = mapped;
                 }
                 this.jmLatestPage = p;
             } catch (e) {
@@ -2470,13 +3038,12 @@ createApp({
                     throw new Error(json.msg || json.detail || 'Failed');
                 }
                 const items = Array.isArray(json.data) ? json.data : [];
-                this.jmCategoryItems = Vue.markRaw(items.map(x => ({
+                this.jmCategoryItems = items.map(x => ({
                     album_id: x.comic_id,
                     title: x.title,
                     author: this.formatAuthor(x.author),
-                    image: x.cover_url,
-                    raw: x
-                })).filter(x => x.album_id && !this.isAlbumBlocked(x)));
+                    image: x.cover_url
+                })).filter(x => x.album_id && !this.isAlbumBlocked(x));
                 this.jmCategoryPage = p;
             } catch (e) {
                 this.jmCategoryError = String(e && e.message ? e.message : 'Failed to load category');
@@ -2751,13 +3318,13 @@ createApp({
                     if (!dedup.has(f.id)) dedup.set(f.id, f);
                 }
                 this.jmFavFolders = Array.from(dedup.values());
-                this.jmFavItems = Vue.markRaw((content || []).map(x => ({
+                this.jmFavItems = (content || []).map(x => ({
                     album_id: x.album_id,
                     title: x.title,
                     author: this.formatAuthor(x.author),
                     image: x.image,
                     category: x.category
-                })).filter(x => x.album_id));
+                })).filter(x => x.album_id);
                 try {
                     const m = { ...(this.favoriteStateById || {}) };
                     for (const it of this.jmFavItems) {
@@ -2874,8 +3441,7 @@ createApp({
                     album_id: x.comic_id,
                     title: x.title,
                     author: this.formatAuthor(x.author),
-                    image: x.cover_url,
-                    raw: x
+                    image: x.cover_url
                 })).filter(x => x.album_id && !this.isAlbumBlocked(x));
                 if (append) {
                     if (!mapped.length) {
@@ -2884,11 +3450,11 @@ createApp({
                         const dedup = new Map();
                         for (const it of (this.jmLeaderboardItems || [])) dedup.set(String(it.album_id), it);
                         for (const it of mapped) dedup.set(String(it.album_id), it);
-                        this.jmLeaderboardItems = Vue.markRaw(Array.from(dedup.values()));
+                        this.jmLeaderboardItems = Array.from(dedup.values());
                     }
                 } else {
                     this.jmLeaderboardHasMore = true;
-                    this.jmLeaderboardItems = Vue.markRaw(mapped);
+                    this.jmLeaderboardItems = mapped;
                 }
                 this.jmLeaderboardPage = p;
             } catch (e) {
@@ -2915,13 +3481,12 @@ createApp({
                 const raw = json.data || {};
                 const list = raw.list || raw.data || raw.records || [];
                 const items = Array.isArray(list) ? list : [];
-                this.jmHistoryItems = Vue.markRaw(items.map(x => ({
+                this.jmHistoryItems = items.map(x => ({
                     album_id: x.album_id || x.id || x.AID || '',
                     title: x.title || x.name || x.book_name || '',
                     author: this.formatAuthor(x.author || ''),
-                    image: x.image || x.cover || '',
-                    raw: x
-                })).filter(x => x.album_id && !this.isAlbumBlocked(x)));
+                    image: x.image || x.cover || ''
+                })).filter(x => x.album_id && !this.isAlbumBlocked(x));
                 this.jmHistoryPage = p;
             } catch (e) {
                 this.jmHistoryError = String(e && e.message ? e.message : 'Failed to load history');
@@ -2953,28 +3518,10 @@ createApp({
         },
         closeDownloadTaskModal() {
             this.showDownloadTaskModal = false;
-        },
-        async cancelDownloadTask() {
-            if (!this.downloadTaskId) return;
-            
-            this.askConfirm('取消下载', '确定要取消当前的下载任务吗？这将会清理已下载的文件。', async () => {
-                try {
-                    const res = await fetch(`/api/v2/${this.source}/download/tasks/${this.downloadTaskId}`, {
-                        method: 'DELETE'
-                    });
-                    if (!res.ok) throw new Error('Cancel failed');
-                    this.showToast('下载已取消并清理残留文件', 'info');
-                    if (this.downloadTaskPoller) {
-                        clearInterval(this.downloadTaskPoller);
-                        this.downloadTaskPoller = null;
-                    }
-                    this.showDownloadTaskModal = false;
-                    this.downloadTaskId = '';
-                    this.downloadTaskInfo = null;
-                } catch (e) {
-                    this.showToast('取消失败，可能任务已经完成', 'error');
-                }
-            });
+            if (this.downloadTaskPoller) {
+                clearInterval(this.downloadTaskPoller);
+                this.downloadTaskPoller = null;
+            }
         },
         startDownloadTaskPolling() {
             if (this.downloadTaskPoller) {
@@ -3052,13 +3599,14 @@ createApp({
             const aid = item && item.album_id ? String(item.album_id) : '';
             const pid = item && item.photo_id ? String(item.photo_id) : '';
             const title = item && item.title ? String(item.title) : '';
+            const pageIndex = Math.max(0, parseInt(item && item.page_index ? item.page_index : 0));
             if (!aid || !pid) {
                 this.showToast('历史记录不完整，无法继续阅读', 'error');
                 return;
             }
             try {
                 await this.viewDetails(aid);
-                await this.readChapter(pid, title || 'Continue Reading');
+                await this.readChapter(pid, title || 'Continue Reading', pageIndex);
             } catch (e) {
                 this.showToast('继续阅读失败', 'error');
             }
@@ -3158,7 +3706,7 @@ createApp({
                 const data = parsed && parsed.data != null ? parsed.data : null;
                 const normalized = this.normalizeHomeData(data);
                 if (!normalized.length) return false;
-                this.homeData = Vue.markRaw(normalized);
+                this.homeData = markRaw(normalized);
                 if (ts) this.homeLastUpdatedAt = ts;
                 return true;
             } catch (e) {
@@ -3208,7 +3756,7 @@ createApp({
                 // 此时会在后台内存中执行 normalizeHomeData（包含屏蔽词过滤）
                 // 只有过滤彻底完成后，才会一次性赋值给 this.homeData 并触发 Vue 的响应式渲染
                 const normalized = this.normalizeHomeData(raw);
-                this.homeData = Vue.markRaw(normalized);
+                this.homeData = markRaw(normalized);
                 
                 this.homeLastUpdatedAt = Date.now();
                 this.saveHomeCache(raw);
@@ -3292,17 +3840,22 @@ createApp({
             } catch (e) {}
         },
         getReadingButtonText(albumId) {
-            const h = this.readingHistory[albumId];
+            const h = this.getResumeHistory(albumId);
             return h ? '继续阅读' : '开始阅读';
         },
         getHistoryText(albumId) {
-            const h = this.readingHistory[albumId];
-            return h ? `上次阅读：${h.title}` : '';
+            const h = this.getResumeHistory(albumId);
+            if (!h) return '';
+            const page = Math.max(0, parseInt(h.page_index || 0)) + 1;
+            return `上次阅读：${h.title}${page > 1 ? ` · 第 ${page} 页` : ''}`;
         },
         async startReading(album) {
-            const h = this.readingHistory[album.album_id];
+            let h = this.getResumeHistory(album.album_id);
+            if (!h && this.siteLoggedIn) {
+                h = await this.fetchAuraResumeHistory(album.album_id);
+            }
             if (h) {
-                this.readChapter(h.photo_id, h.title);
+                this.readChapter(h.photo_id, h.title, Math.max(0, parseInt(h.page_index || 0)));
                 return;
             }
             if (album.episode_list && album.episode_list.length > 0) {
@@ -3318,7 +3871,7 @@ createApp({
                     });
                 } catch (e) {}
                 const first = sorted[0];
-                this.readChapter(first.id, first.title);
+                this.readChapter(first.id, first.title, 0);
             } else {
                 this.showToast('未找到章节', 'error');
             }
@@ -3327,7 +3880,7 @@ createApp({
             const aid = album && album.album_id ? String(album.album_id) : '';
             if (!aid) return;
             if (!this.siteLoggedIn) {
-                this.showToast('请先登录/注册 Aura 账号', 'error');
+                this.showToast('请先登录或注册 JM 账号', 'error');
                 this.openSiteAuth('login');
                 return;
             }
@@ -3335,37 +3888,39 @@ createApp({
                 this.unfavoriteAlbum(aid);
                 return;
             }
-            if (!this.isLoggedIn) {
-                this.addLocalFavorite(aid);
-                if (this.selectedAlbum && String(this.selectedAlbum.album_id) === aid) {
-                    this.selectedAlbum.is_favorite = true;
+            (async () => {
+                if (!(await this.ensureJmSessionReady(false))) {
+                    this.addLocalFavorite(aid);
+                    if (this.selectedAlbum && String(this.selectedAlbum.album_id) === aid) {
+                        this.selectedAlbum.is_favorite = true;
+                    }
+                    this.showToast('未登录 JM，已保存到本地收藏', 'success');
+                    return;
                 }
-                this.showToast('未登录 JM，已保存到本地收藏', 'success');
-                return;
-            }
-            this.openFavoritePicker(album);
+                this.openFavoritePicker(album);
+            })();
         },
         unfavoriteAlbum(albumId) {
             const aid = String(albumId || '').trim();
             if (!aid) return;
-            if (!this.isLoggedIn) {
-                this.removeLocalFavorite(aid);
-                this.favoriteStateById = { ...(this.favoriteStateById || {}), [aid]: false };
-                if (this.selectedAlbum && String(this.selectedAlbum.album_id) === aid) {
-                    this.selectedAlbum.is_favorite = false;
-                }
-                this.showToast('已从本地收藏移除', 'success');
-                return;
-            }
             (async () => {
                 try {
+                    if (!(await this.ensureJmSessionReady(false))) {
+                        this.removeLocalFavorite(aid);
+                        this.favoriteStateById = { ...(this.favoriteStateById || {}), [aid]: false };
+                        if (this.selectedAlbum && String(this.selectedAlbum.album_id) === aid) {
+                            this.selectedAlbum.is_favorite = false;
+                        }
+                        this.showToast('已从本地收藏移除', 'success');
+                        return;
+                    }
                     const res = await fetch('/api/favorite/toggle', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ album_id: aid, desired_state: false })
                     });
                     const json = await res.json().catch(() => ({}));
-                    if (!res.ok || (json.status && json.status !== 1001)) {
+                    if (!res.ok || (json.st && json.st !== 1001)) {
                         throw new Error(json.msg || json.detail || '取消收藏失败');
                     }
                     const next = typeof json.is_favorite === 'boolean' ? json.is_favorite : false;
@@ -3466,11 +4021,6 @@ createApp({
             }
         },
         openJmRegister(prefill) {
-            if (!this.siteLoggedIn) {
-                this.showToast('请先登录/注册 Aura 账号', 'error');
-                this.openSiteAuth('login');
-                return;
-            }
             const pre = String(prefill || '').trim();
             this.jmRegUsername = pre ? pre : String(this.config && this.config.username ? this.config.username : '');
             this.jmRegEmail = '';
@@ -3491,7 +4041,6 @@ createApp({
             this.jmRegLoading = false;
         },
         async loadJmRegisterCaptcha() {
-            if (!this.siteLoggedIn) return;
             if (this.jmRegCaptchaLoading) return;
             this.jmRegCaptchaLoading = true;
             try {
@@ -3499,6 +4048,11 @@ createApp({
                 if (!res.ok) {
                     const j = await res.json().catch(() => ({}));
                     throw new Error(j.msg || j.detail || '获取验证码失败');
+                }
+                const contentType = String(res.headers.get('content-type') || '').toLowerCase();
+                if (!contentType.startsWith('image/')) {
+                    const text = await res.text().catch(() => '');
+                    throw new Error(text || '验证码返回格式异常');
                 }
                 const blob = await res.blob();
                 try {
@@ -3512,11 +4066,6 @@ createApp({
             }
         },
         async submitJmRegister() {
-            if (!this.siteLoggedIn) {
-                this.showToast('请先登录/注册 Aura 账号', 'error');
-                this.openSiteAuth('login');
-                return;
-            }
             const u = String(this.jmRegUsername || '').trim();
             const em = String(this.jmRegEmail || '').trim();
             const p1 = String(this.jmRegPassword || '');
@@ -3572,13 +4121,17 @@ createApp({
             }
             (async () => {
                 try {
+                    if (!(await this.ensureJmSessionReady())) {
+                        this.closeFavoritePicker();
+                        return;
+                    }
                     const res = await fetch('/api/favorite/toggle', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ album_id: aid, desired_state: true })
                     });
                     const json = await res.json().catch(() => ({}));
-                    if (!res.ok || (json.status && json.status !== 1001)) {
+                    if (!res.ok || (json.st && json.st !== 1001)) {
                         throw new Error(json.msg || json.detail || '收藏失败');
                     }
                     if (fid && fid !== '0') {
@@ -3716,6 +4269,7 @@ createApp({
             if (!el) return;
             this.updateReaderScrollIndicator(el);
             this.maybeLoadMoreReaderImages(el);
+            this.scheduleReadingProgressSave(el);
             const top = el.scrollTop || 0;
             if (top < this.readerLastScrollTop - 8) {
                 this.hideReaderUi();
@@ -3726,15 +4280,32 @@ createApp({
             if (!this.readingChapter || !Array.isArray(this.readingChapter.images)) return;
             const total = this.readingChapter.images.length || 0;
             if (total <= 0) return;
-            const cur = Math.max(0, parseInt(this.readerLoadLimit || 0));
-            if (cur >= total) return;
+            const start = Math.max(0, parseInt(this.readerRenderStartIndex || 0));
+            const cur = Math.max(start, parseInt(this.readerLoadLimit || 0));
             const sh = Number(el && el.scrollHeight ? el.scrollHeight : 0);
             const ch = Number(el && el.clientHeight ? el.clientHeight : 0);
             const st = Number(el && typeof el.scrollTop === 'number' ? el.scrollTop : (el && el.scrollTop ? el.scrollTop : 0));
             if (!sh || !ch) return;
+            const batch = Math.max(1, parseInt((this.readerSettings && this.readerSettings.batch) ? this.readerSettings.batch : 3));
+            if (st < 800 && start > 0) {
+                const nextStart = Math.max(0, start - batch);
+                if (nextStart < start) {
+                    const prevHeight = sh;
+                    this.readerRenderStartIndex = nextStart;
+                    this.$nextTick(() => {
+                        const nextHeight = Number(el && el.scrollHeight ? el.scrollHeight : 0);
+                        const delta = Math.max(0, nextHeight - prevHeight);
+                        try {
+                            el.scrollTop = st + delta;
+                        } catch (e) {}
+                        this.updateReaderScrollIndicator(el);
+                    });
+                }
+                return;
+            }
+            if (cur >= total) return;
             const remain = sh - (st + ch);
             if (remain > 1200) return;
-            const batch = Math.max(1, parseInt((this.readerSettings && this.readerSettings.batch) ? this.readerSettings.batch : 3));
             const next = Math.min(total, cur + batch);
             if (next <= cur) return;
             this.readerLoadLimit = next;
@@ -3930,14 +4501,26 @@ createApp({
             return url;
         },
         async checkLoginStatus() {
+            if (this.authBootstrapping || this.siteAuthLoading || this.jmReloginRunning) {
+                return this.isLoggedIn;
+            }
             try {
+                if (this.siteLoggedIn) {
+                    await this.loadJmBindingStatus();
+                    this.isLoggedIn = !!(this.jmBinding && this.jmBinding.jm_logged_in);
+                    if (this.isLoggedIn && this.jmBinding && this.jmBinding.jm_username) {
+                        this.config.username = this.jmBinding.jm_username;
+                    }
+                    return this.isLoggedIn;
+                }
                 const res = await fetch('/api/config');
                 const data = await res.json();
-                this.isLoggedIn = data.is_logged_in;
+                this.isLoggedIn = !!data.is_logged_in;
                 if (this.isLoggedIn) {
                     this.config.username = data.username;
                 }
             } catch (e) {}
+            return this.isLoggedIn;
         },
         async loadAccountProfile() {
             if (!this.isLoggedIn) {
@@ -4052,7 +4635,7 @@ createApp({
         },
         async saveConfig() {
             if (!this.siteLoggedIn) {
-                this.loginMsg = '请先登录 Aura 账号';
+                this.loginMsg = '请先登录 JM 账号';
                 this.loginMsgType = 'error';
                 this.openSiteAuth('login');
                 return;
@@ -4149,7 +4732,7 @@ createApp({
                     const data = await res.json().catch(() => ({}));
                     if (!res.ok || (data.st && data.st !== 1001)) throw new Error(data?.msg || data?.detail || 'Search failed');
                     const items = Array.isArray(data.data) ? data.data : [];
-                    this.searchResults = Vue.markRaw(items.map(x => ({
+                    this.searchResults = markRaw(items.map(x => ({
                         album_id: x.comic_id,
                         title: x.title,
                         author: this.formatAuthor(x.author),
@@ -4172,7 +4755,7 @@ createApp({
                             });
                         }
                     }
-                    this.searchResults = Vue.markRaw((items || []).map(it => {
+                    this.searchResults = markRaw((items || []).map(it => {
                         if (!it || typeof it !== 'object') return it;
                         return { ...it, author: this.formatAuthor(it.author) };
                     }).filter(it => it && !this.isAlbumBlocked(it)));
@@ -4241,9 +4824,6 @@ createApp({
                 }
             } catch (e) {}
             this.selectedAlbum = null;
-            this.showDetailActionMenu = false;
-            this.showDownloadChapterModal = false;
-            this.selectedChapters = [];
             this.alsoViewedItems = [];
             this.alsoViewedLoading = false;
             this.currentTab = 'detail';
@@ -4251,7 +4831,7 @@ createApp({
             try {
                 const res = await fetch(`/api/album/${albumId}`);
                 if (!res.ok) throw new Error('Failed');
-                this.selectedAlbum = await res.json();
+                this.selectedAlbum = markRaw(await res.json());
                 
                 const blockMatch = this.isAlbumBlocked(this.selectedAlbum, this.selectedAlbum);
                 if (blockMatch) {
@@ -4291,9 +4871,6 @@ createApp({
             }
         },
         goBackFromDetail() {
-            this.showDetailActionMenu = false;
-            this.showDownloadChapterModal = false;
-            this.selectedChapters = [];
             const t = String(this.detailReturnTab || '').trim();
             if (t && t !== 'detail' && t !== 'reader') {
                 this.currentTab = t;
@@ -4304,9 +4881,7 @@ createApp({
         getAlbumShareUrl(album) {
             const a = album && typeof album === 'object' ? album : null;
             const id = a && (a.album_id || a.id) ? String(a.album_id || a.id) : '';
-            const origin = (typeof window !== 'undefined' && window.location && window.location.origin) ? window.location.origin : '';
-            if (!origin || !id) return '';
-            return `${origin}/?album=${encodeURIComponent(id)}`;
+            return `${window.location.origin}/detail/${encodeURIComponent(id)}`;
         },
         async shareAlbum(album) {
             const a = album && typeof album === 'object' ? album : null;
@@ -4380,8 +4955,7 @@ createApp({
                     title: x.title,
                     author: this.formatAuthor(x.author),
                     image: x.cover_url,
-                    source: 'jm',
-                    raw: x
+                    source: 'jm'
                 })).filter(x => x.album_id && !this.isAlbumBlocked(x));
             } catch (e) {
                 this.alsoViewedItems = [];
@@ -4706,11 +5280,15 @@ createApp({
                 this.commentSending = false;
             }
         },
-        async readChapter(photoId, title) {
+        async readChapter(photoId, title, resumePageIndex = 0) {
             this.readingChapter = null;
+            const targetPageIndex = Math.max(0, parseInt(resumePageIndex || 0));
             const initial = Math.max(1, parseInt((this.readerSettings && this.readerSettings.initial) ? this.readerSettings.initial : 4));
+            this.readerRenderStartIndex = 0;
             this.readerLoadLimit = initial;
             this.readerBatchEndIndex = initial - 1;
+            this.readerCurrentPageIndex = targetPageIndex;
+            this.readerRestorePageIndex = targetPageIndex;
             this.currentTab = 'reader';
             this.showReaderControls = true;
             this.readerLastScrollTop = 0;
@@ -4724,9 +5302,10 @@ createApp({
                     photo_id: photoId,
                     title: title,
                     album_title: this.selectedAlbum.title,
+                    page_index: targetPageIndex,
                     timestamp: Date.now()
                 };
-                this.readingHistory = { ...this.readingHistory };
+                this.readingHistory = this.compactReadingHistory({ ...this.readingHistory });
                 if (this.siteLoggedIn) {
                     try {
                         fetch('/api/aura/library/history', {
@@ -4737,9 +5316,10 @@ createApp({
                                 album_title: String(this.selectedAlbum.title || ''),
                                 photo_id: String(photoId || ''),
                                 title: String(title || ''),
+                                page_index: targetPageIndex,
                                 timestamp: Date.now()
                             })
-                        }).then(() => { this.loadAuraLibrary(); }).catch(() => {});
+                        }).catch(() => {});
                     } catch (e) {}
                 }
             }
@@ -4750,14 +5330,20 @@ createApp({
                     const errData = await res.json().catch(() => ({}));
                     throw new Error(errData.detail || 'Failed to load chapter');
                 }
-                this.readingChapter = await res.json();
+                this.readingChapter = markRaw(await res.json());
                 try {
                     const total = (this.readingChapter && Array.isArray(this.readingChapter.images)) ? this.readingChapter.images.length : 0;
                     const ini = Math.max(1, parseInt((this.readerSettings && this.readerSettings.initial) ? this.readerSettings.initial : 4));
-                    this.readerLoadLimit = total > 0 ? Math.min(total, ini) : ini;
+                    const start = targetPageIndex > 1 ? Math.max(0, targetPageIndex - 1) : 0;
+                    const end = targetPageIndex > 0
+                        ? Math.min(total, Math.max(targetPageIndex + Math.max(2, ini), start + ini))
+                        : Math.min(total, ini);
+                    this.readerRenderStartIndex = start;
+                    this.readerLoadLimit = total > 0 ? Math.max(start + 1, end) : ini;
                     this.readerBatchEndIndex = Math.max(0, this.readerLoadLimit - 1);
                 } catch (e) {}
                 this.showReaderUiForAwhile();
+                await this.restoreReaderPosition(targetPageIndex);
             } catch (e) {
                 this.showToast(`Error: ${e.message}`, 'error');
                 setTimeout(() => {
@@ -4765,22 +5351,25 @@ createApp({
                 }, 2000);
             }
         },
-        downloadCurrentAlbum() {
-            this.openDownloadChapterModal();
-        },
-        openDownloadChapterModal() {
-            if (!this.selectedAlbum || this.source !== 'jm') return;
-            this.showDownloadChapterModal = true;
-            const eps = (this.selectedAlbum && Array.isArray(this.selectedAlbum.episode_list)) ? this.selectedAlbum.episode_list : [];
-            if (eps.length === 1 && eps[0] && eps[0].id != null) {
-                this.selectedChapters = [String(eps[0].id)];
-                return;
-            }
-            this.selectedChapters = [];
-        },
-        closeDownloadChapterModal() {
-            this.showDownloadChapterModal = false;
-            this.selectedChapters = [];
+        async download(albumId) {
+            this.askConfirm('Download', `Download entire album ${albumId}?`, async () => {
+                this.showToast('Queuing download...', 'info');
+                try {
+                    const res = await fetch('/api/download', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ album_id: albumId, chapter_ids: [] })
+                    });
+                    const data = await res.json();
+                    if (res.ok) {
+                        this.showToast(data.message, 'success');
+                    } else {
+                        throw new Error(data.detail || 'Download failed');
+                    }
+                } catch(e) {
+                    this.showToast(e.message, 'error');
+                }
+            });
         },
         toggleSelectionMode() {
             this.isSelectionMode = !this.isSelectionMode;
@@ -4806,15 +5395,6 @@ createApp({
         },
         isSelected(epId) {
             return this.selectedChapters.includes(epId);
-        },
-        toggleSelectedChapter(epId) {
-            const targetId = String(epId);
-            const index = this.selectedChapters.findIndex(id => String(id) === targetId);
-            if (index === -1) {
-                this.selectedChapters.push(targetId);
-            } else {
-                this.selectedChapters.splice(index, 1);
-            }
         },
         handleChapterClick(ep) {
             if (this.isSelectionMode) {
@@ -4870,7 +5450,6 @@ createApp({
                 this.downloadTaskId = this.downloadTaskInfo ? (this.downloadTaskInfo.task_id || '') : '';
                 this.startDownloadTaskPolling();
 
-                this.showDownloadChapterModal = false;
                 this.isSelectionMode = false;
                 this.selectedChapters = [];
             } catch (e) {

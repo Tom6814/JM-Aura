@@ -102,7 +102,7 @@
             }
 
             // 3. Start Vue App
-            await loadScript('/app.js');
+            await loadScript('/app.js?v=1776431286?v=' + Date.now());
         } catch (e) {
             console.error('Failed to load app:', e);
             appEl.innerHTML = '<div class="p-4 text-red-500 text-center mt-10">Application loading failed. Please refresh.</div>';

@@ -192,7 +192,7 @@
              :style="{ width: readerSettings.width + '%', maxWidth: readerSettings.width + '%' }">
             <div v-if="readingChapter && readingChapter.images" class="flex flex-col w-full align-top" :style="{ gap: readerSettings.gap + 'px' }">
                 <template v-for="(img, idx) in readingChapter.images" :key="readingChapter.photo_id + '-' + img">
-                    <div v-if="idx < readerLoadLimit" class="relative w-full flex flex-col items-center justify-center bg-black p-0 m-0" style="line-height: 0; font-size: 0;">
+                    <div v-if="idx >= readerRenderStartIndex && idx < readerLoadLimit" class="relative w-full flex flex-col items-center justify-center bg-black p-0 m-0" style="line-height: 0; font-size: 0;" :data-reader-page-index="idx">
                         <descrambled-image 
                             :src="getChapterImageUrl(readingChapter.photo_id, img, readingChapter.scramble_id, readingChapter.data_original_domain)"
                             :comic-id="readingChapter.photo_id"

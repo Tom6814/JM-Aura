@@ -4,21 +4,15 @@
         <div class="min-w-0 space-y-1">
             <h2 class="headline-medium font-bold text-on-surface flex items-center gap-3">
                 <span class="material-symbols-rounded text-primary filled-icon text-4xl">history</span>
-                历史记录（JM / Aura）
+                历史记录
             </h2>
             <p class="text-body-large text-on-surface-variant/80">
-                <span v-if="historyScope === 'aura'">Aura 历史：在 Aura 账号下保存的阅读记录</span>
-                <span v-else-if="jmHistoryMode === 'local'">JM 本地阅读历史 (仅存储于此设备)</span>
+                <span v-if="jmHistoryMode === 'local'">JM 本地阅读历史 (仅存储于此设备)</span>
                 <span v-else>JM 云端历史 (从服务器同步)</span>
             </p>
         </div>
         <div class="flex items-center gap-2">
-            <button v-if="historyScope === 'aura'" @click="loadAuraLibrary" :disabled="auraLibraryLoading"
-                class="md-icon-btn bg-surface-container-high hover:bg-primary hover:text-on-primary rounded-full"
-                title="刷新">
-                <span class="material-symbols-rounded" :class="auraLibraryLoading ? 'animate-spin' : ''">refresh</span>
-            </button>
-            <button v-else-if="jmHistoryMode === 'remote'" @click="loadJmHistory(1)" :disabled="jmHistoryLoading"
+            <button v-if="jmHistoryMode === 'remote'" @click="loadJmHistory(1)" :disabled="jmHistoryLoading"
                 class="md-icon-btn bg-surface-container-high hover:bg-primary hover:text-on-primary rounded-full"
                 title="刷新">
                 <span class="material-symbols-rounded" :class="jmHistoryLoading ? 'animate-spin' : ''">refresh</span>
@@ -38,21 +32,6 @@
 
     <div class="space-y-3">
         <div class="md-card p-2 bg-surface-container-low border-0 inline-flex items-center gap-1 rounded-full w-auto self-start">
-            <button @click="setHistoryScope('jm')"
-                class="h-10 px-6 rounded-full text-sm font-bold transition-all duration-300 flex items-center gap-2"
-                :class="historyScope === 'jm' ? 'bg-primary text-on-primary shadow-md' : 'text-on-surface-variant hover:bg-surface-variant'">
-                <span class="material-symbols-rounded text-[18px]">favorite</span>
-                JM
-            </button>
-            <button @click="setHistoryScope('aura')"
-                class="h-10 px-6 rounded-full text-sm font-bold transition-all duration-300 flex items-center gap-2"
-                :class="historyScope === 'aura' ? 'bg-primary text-on-primary shadow-md' : 'text-on-surface-variant hover:bg-surface-variant'">
-                <span class="material-symbols-rounded text-[18px]">auto_stories</span>
-                Aura
-            </button>
-        </div>
-
-        <div v-if="historyScope === 'jm'" class="md-card p-2 bg-surface-container-low border-0 inline-flex items-center gap-1 rounded-full w-auto self-start">
             <button @click="setJmHistoryMode('local')"
                 class="h-10 px-6 rounded-full text-sm font-bold transition-all duration-300 flex items-center gap-2"
                 :class="jmHistoryMode === 'local' ? 'bg-primary text-on-primary shadow-md' : 'text-on-surface-variant hover:bg-surface-variant'">
@@ -68,55 +47,12 @@
         </div>
     </div>
 
-    <div v-if="historyScope === 'aura'" class="space-y-6">
-        <div v-if="!siteLoggedIn" class="md-card p-8 text-center bg-surface-container">
-            <span class="material-symbols-rounded text-6xl text-outline-variant mb-4">shield_person</span>
-            <h3 class="headline-small text-on-surface mb-2">需要登录 Aura 账号</h3>
-            <p class="text-body-medium text-on-surface-variant mb-6">登录 Aura 后可查看与管理 Aura 历史记录。</p>
-            <button @click="openSiteAuth('login')" class="md-btn-primary">登录/注册 Aura 账号</button>
-        </div>
-
-        <div v-else class="space-y-4">
-            <loading-state :loading="auraLibraryLoading && (!auraLibrary?.history || auraLibrary.history.length === 0)">
-                <span class="mt-4 text-body-medium text-on-surface-variant">加载 Aura 历史中...</span>
-            </loading-state>
-
-            <div v-if="!auraLibraryLoading && (!auraLibrary?.history || auraLibrary.history.length === 0)" class="flex flex-col items-center justify-center py-24 opacity-60">
-                <span class="material-symbols-rounded text-8xl text-outline-variant mb-4">history_edu</span>
-                <p class="headline-small text-on-surface-variant">暂无 Aura 历史</p>
-            </div>
-
-            <div v-if="auraLibrary?.history && auraLibrary.history.length" class="space-y-3">
-                <div v-for="it in auraLibrary.history" :key="it.album_id"
-                    class="media-card-list group flex items-center gap-4 p-4 rounded-3xl bg-surface-container-low hover:bg-surface-container transition-all duration-200 cursor-pointer shadow-sm hover:shadow-md"
-                    :style="getCardAmbientStyle(it.album_id || it.album_title)"
-                    @click="viewDetails(String(it.album_id || ''))">
-                    <div class="media-card-list-thumb w-20 h-28 rounded-xl overflow-hidden bg-surface-variant shadow-sm flex-shrink-0 relative transition-shadow">
-                        <div class="absolute inset-0 flex items-center justify-center text-on-surface-variant/70">
-                            <span class="material-symbols-rounded text-3xl">menu_book</span>
-                        </div>
-                        <div class="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-colors"></div>
-                    </div>
-                    <div class="min-w-0 flex-1 space-y-1">
-                        <div class="title-medium font-bold truncate text-on-surface transition-colors">{{ it.album_title || ('Album ' + it.album_id) }}</div>
-                        <div class="text-body-small text-on-surface-variant flex items-center gap-2">
-                            <span class="px-2 py-0.5 rounded-full bg-primary/10 text-primary font-mono text-xs">上次阅读</span>
-                            <span class="truncate opacity-80">{{ it.title || '' }}</span>
-                        </div>
-                    </div>
-                    <span class="media-card-list-chevron material-symbols-rounded text-outline-variant transition-all mr-2">chevron_right</span>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Remote History -->
-    <div v-else-if="jmHistoryMode === 'remote'" class="space-y-6">
+    <div v-if="jmHistoryMode === 'remote'" class="space-y-6">
         <div v-if="!isLoggedIn" class="md-card p-8 text-center bg-surface-container">
             <span class="material-symbols-rounded text-6xl text-outline-variant mb-4">lock</span>
             <h3 class="headline-small text-on-surface mb-2">需要登录</h3>
-            <p class="text-body-medium text-on-surface-variant mb-6">请先登录 Aura，再登录 JM 以查看云端历史。</p>
-            <button @click="currentTab='config'" class="md-btn-primary">前往设置</button>
+            <p class="text-body-medium text-on-surface-variant mb-6">请先登录 JM 账号以查看云端历史。</p>
+            <button @click="currentTab='config'" class="md-btn-primary">前往登录</button>
         </div>
 
         <div v-else class="space-y-4">

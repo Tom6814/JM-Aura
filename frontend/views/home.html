@@ -57,10 +57,13 @@
 
             <!-- Hero Section -->
             <div class="flex flex-col items-center gap-6 py-8 md:py-20 px-4">
-                <div class="text-center space-y-2">
-                    <h1 class="text-4xl md:text-7xl font-normal tracking-tighter text-on-surface">
-                        JM <span class="text-primary font-medium italic">Aura</span>
+                <div class="text-center space-y-2 flex justify-center w-full">
+                    <h1 class="text-4xl md:text-7xl font-normal tracking-tighter text-on-surface flex items-center gap-2 justify-center">
+                        <template v-if="source === 'jm'">JM</template> 
+                        <span class="text-primary font-medium italic">Aura</span>
                     </h1>
+                </div>
+                <div class="text-center space-y-2">
                     <p class="text-on-surface-variant text-base md:text-xl font-light tracking-wide">
                         Discover your next favorite story
                     </p>
@@ -192,7 +195,7 @@
             <!-- Back to Top -->
             <transition name="fade">
                 <button v-show="showBackToTop" @click="scrollToTop" 
-                    class="fixed bottom-24 right-6 md:bottom-10 md:right-10 z-40 w-14 h-14 rounded-full bg-primary-container text-on-primary-container shadow-xl flex items-center justify-center hover:scale-110 transition-transform border border-primary/10">
+                    class="fixed bottom-28 right-6 md:bottom-10 md:right-10 z-40 w-14 h-14 rounded-full bg-primary-container text-on-primary-container shadow-xl flex items-center justify-center hover:scale-110 transition-transform border border-primary/10">
                     <span class="material-symbols-rounded text-3xl">arrow_upward</span>
                 </button>
             </transition>

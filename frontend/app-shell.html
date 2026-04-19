@@ -153,14 +153,14 @@
                                 @click="openSiteAuth('login'); showUserMenu = false"
                                 class="w-full h-11 rounded-full transition font-medium bg-primary text-on-primary hover:bg-primary/90"
                             >
-                                Aura 登录/注册
+                                JM 登录/注册
                             </button>
                             <button
                                 v-else
                                 @click="siteLogout(); showUserMenu = false"
                                 class="w-full h-11 rounded-full transition font-medium bg-surface-container-high text-on-surface hover:bg-error hover:text-on-error"
                             >
-                                Aura 登出
+                                JM 登出
                             </button>
                         </div>
                         <div v-if="isLoggedIn && accountProfile" class="px-5 py-4 mb-2 group/profile cursor-default">
@@ -229,11 +229,11 @@
             <div v-if="siteAuthOpen" class="md-mobile-sheet bg-surface md-card p-6 w-full lg:max-w-sm shadow-2xl rounded-t-[32px] lg:rounded-[28px] max-h-[85vh] overflow-y-auto" @click.stop>
             <div class="flex items-start justify-between gap-3 mb-4">
                 <div class="min-w-0">
-                    <h3 class="text-xl font-bold text-on-surface tracking-tight">{{ siteAuthMode === 'register' ? '创建 Aura 账号' : '登录 Aura 账号' }}</h3>
+                    <h3 class="text-xl font-bold text-on-surface tracking-tight">{{ siteAuthMode === 'register' ? '注册 JM 账号' : '登录 JM 账号' }}</h3>
                     <p class="mt-1 text-sm text-on-surface-variant leading-snug">
                         {{ siteAuthMode === 'register'
-                            ? (siteHasUsers ? '用于保存你的个人配置与登录信息。Aura 账号仅在本机可用。' : '首次创建的账号将成为管理员，用于后续新增用户。')
-                            : (siteHasUsers ? '登录后可使用自动登录等个人功能。也可继续以访客方式使用。' : '尚未创建任何账号，请先注册一个管理员账号。')
+                            ? '直接在服务端创建 JM 账号。成功后会自动登录。'
+                            : '登录你的 JM 账号以浏览内容。不同账号登录将自动隔离。'
                         }}
                     </p>
                 </div>
@@ -243,34 +243,72 @@
             </div>
             <div class="flex gap-2 mb-5 p-1 bg-surface-container-high rounded-full">
                 <button @click="siteAuthMode = 'login'" class="h-10 flex-1 rounded-full transition font-medium" :class="siteAuthMode === 'login' ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface'">登录</button>
-                <button @click="siteAuthMode = 'register'" class="h-10 flex-1 rounded-full transition font-medium" :class="siteAuthMode === 'register' ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface'">注册</button>
+                <button @click="siteAuthMode = 'register'; refreshSiteAuthCaptcha()" class="h-10 flex-1 rounded-full transition font-medium" :class="siteAuthMode === 'register' ? 'bg-primary text-on-primary shadow-sm' : 'text-on-surface'">注册</button>
             </div>
             <div class="space-y-3">
                 <label class="block">
                     <div class="flex items-center justify-between mb-1 px-1">
                         <span class="text-xs font-medium text-on-surface-variant">用户名</span>
-                        <span class="text-xs text-on-surface-variant/70">支持字母/数字/._-@</span>
+                        <span class="text-xs text-on-surface-variant/70">JM 账号用户名</span>
                     </div>
                     <div class="relative">
                         <span class="material-symbols-rounded absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant/70">person</span>
-                        <input v-model="siteAuthUsername" class="w-full pl-12 pr-4 py-3 rounded-2xl bg-surface-container-high outline-none ring-1 ring-outline-variant/30 focus:ring-primary/40 text-on-surface" placeholder="例如：tom@example.com">
+                        <input v-model="siteAuthUsername" class="w-full pl-12 pr-4 py-3 rounded-2xl bg-surface-container-high outline-none ring-1 ring-outline-variant/30 focus:ring-primary/40 text-on-surface" placeholder="输入用户名">
                     </div>
                 </label>
+
+                <!-- 注册专属字段 -->
+                <template v-if="siteAuthMode === 'register'">
+                    <label class="block">
+                        <div class="flex items-center justify-between mb-1 px-1">
+                            <span class="text-xs font-medium text-on-surface-variant">邮箱</span>
+                        </div>
+                        <div class="relative">
+                            <span class="material-symbols-rounded absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant/70">mail</span>
+                            <input v-model="siteAuthEmail" class="w-full pl-12 pr-4 py-3 rounded-2xl bg-surface-container-high outline-none ring-1 ring-outline-variant/30 focus:ring-primary/40 text-on-surface" placeholder="输入常用邮箱">
+                        </div>
+                    </label>
+                </template>
+
                 <label class="block">
                     <div class="flex items-center justify-between mb-1 px-1">
                         <span class="text-xs font-medium text-on-surface-variant">密码</span>
-                        <span class="text-xs text-on-surface-variant/70">至少 6 位</span>
                     </div>
                     <div class="relative">
                         <span class="material-symbols-rounded absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant/70">lock</span>
                         <input v-model="siteAuthPassword" type="password" class="w-full pl-12 pr-4 py-3 rounded-2xl bg-surface-container-high outline-none ring-1 ring-outline-variant/30 focus:ring-primary/40 text-on-surface" placeholder="输入密码">
                     </div>
                 </label>
+
+                <template v-if="siteAuthMode === 'register'">
+                    <label class="block">
+                        <div class="flex items-center justify-between mb-1 px-1">
+                            <span class="text-xs font-medium text-on-surface-variant">确认密码</span>
+                        </div>
+                        <div class="relative">
+                            <span class="material-symbols-rounded absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant/70">lock</span>
+                            <input v-model="siteAuthPasswordConfirm" type="password" class="w-full pl-12 pr-4 py-3 rounded-2xl bg-surface-container-high outline-none ring-1 ring-outline-variant/30 focus:ring-primary/40 text-on-surface" placeholder="再次输入密码">
+                        </div>
+                    </label>
+
+                    <label class="block">
+                        <div class="flex items-center justify-between mb-1 px-1">
+                            <span class="text-xs font-medium text-on-surface-variant">验证码</span>
+                        </div>
+                        <div class="flex gap-3">
+                            <div class="relative flex-1">
+                                <span class="material-symbols-rounded absolute left-4 top-1/2 -translate-y-1/2 text-on-surface-variant/70">verified</span>
+                                <input v-model="siteAuthCaptcha" class="w-full pl-12 pr-4 py-3 rounded-2xl bg-surface-container-high outline-none ring-1 ring-outline-variant/30 focus:ring-primary/40 text-on-surface" placeholder="验证码">
+                            </div>
+                            <img v-if="siteAuthCaptchaUrl" :src="siteAuthCaptchaUrl" @click="refreshSiteAuthCaptcha" class="h-[48px] rounded-xl cursor-pointer bg-white border border-outline-variant/30" alt="captcha" title="点击刷新">
+                        </div>
+                    </label>
+                </template>
+
                 <div class="flex items-start gap-3 p-3 rounded-2xl bg-surface-container-low">
                     <span class="material-symbols-rounded text-on-surface-variant/70 mt-0.5">info</span>
                     <div class="text-xs text-on-surface-variant leading-relaxed">
-                        <div>Aura 账号用于区分不同使用者的收藏/配置。</div>
-                        <div>JM 密码仅在你开启“保存密码/自动登录”时才会由本机安全存储保存，浏览器不会保存明文。</div>
+                        <div>{{ siteAuthMode === 'register' ? '注册请求将直接发送至 JM 服务器，请留意邮箱信息。' : '此为直接连接 JM 服务器进行登录验证。' }}</div>
                     </div>
                 </div>
             </div>
@@ -486,7 +524,7 @@
                         class="h-12 rounded-2xl transition font-medium flex items-center justify-center gap-2 bg-primary text-on-primary hover:bg-primary/90"
                     >
                         <span class="material-symbols-rounded">lock</span>
-                        Aura 登录/注册
+                        JM 登录/注册
                     </button>
                     <button
                         v-else
@@ -494,7 +532,7 @@
                         class="h-12 rounded-2xl transition font-medium flex items-center justify-center gap-2 bg-surface-container hover:bg-error hover:text-on-error"
                     >
                         <span class="material-symbols-rounded">logout</span>
-                        Aura 登出
+                        JM 登出
                     </button>
                     <button v-if="source === 'jm'" @click="currentTab = 'jm_history'; showUserMenu = false" class="h-12 rounded-2xl bg-surface-container hover:bg-primary hover:text-on-primary transition font-medium flex items-center justify-center gap-2">
                         <span class="material-symbols-rounded">history</span>
