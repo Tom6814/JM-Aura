@@ -11,6 +11,8 @@
 
 ---
 
+#项目暂时冬眠for few months...
+
 # 这是什么？
 
 **JM-Aura** 是一个面向 **JMComic** 的本地/自建 Web 应用：  
