@@ -17,9 +17,13 @@ test("root package uses npm workspaces for web api and shared", async () => {
 
 test("workspace package manifests and tsconfigs exist", async () => {
   for (const path of [
+    "./Dockerfile.web",
+    "./Dockerfile.api",
+    "./zbpack.web.json",
+    "./zbpack.api.json",
     "./web/app/root.tsx",
-    "./web/remix.config.js",
     "./web/package.json",
+    "./web/remix.config.js",
     "./web/tsconfig.json",
     "./api/package.json",
     "./api/tsconfig.json",

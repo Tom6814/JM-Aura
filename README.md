@@ -85,17 +85,18 @@ npm run start:api
 
 当前仓库已经按双服务部署整理：
 
-- 根级 `zeabur.yaml` 显式声明 `web` / `api` 两个服务
-- `web` 服务使用 `web/Dockerfile`
-- `api` 服务使用 `api/Dockerfile`
+- 根级 `zeabur.yaml` 提供模板描述
+- 根级 `Dockerfile.web` / `Dockerfile.api` 用于 Zeabur 按服务名自动匹配构建
+- 根级 `zbpack.web.json` / `zbpack.api.json` 固定 monorepo 的构建与启动命令
 
 部署步骤如下：
 
 #### 1. 创建 `api` 服务
 
 - 仓库来源：当前仓库
-- 服务目录：`api/`
-- Dockerfile：`api/Dockerfile`
+- 服务名：`api`
+- Root Directory：`/`
+- Dockerfile：`Dockerfile.api`
 - 端口：`8787`（或使用 Zeabur 注入的 `PORT`）
 
 建议环境变量：
@@ -110,8 +111,9 @@ TASK_RUNNER_TIMEOUT_MS=900000
 #### 2. 创建 `web` 服务
 
 - 仓库来源：当前仓库
-- 服务目录：`web/`
-- Dockerfile：`web/Dockerfile`
+- 服务名：`web`
+- Root Directory：`/`
+- Dockerfile：`Dockerfile.web`
 - 端口：`3000`（或使用 Zeabur 注入的 `PORT`）
 
 关键环境变量：
@@ -132,20 +134,22 @@ API_ORIGIN=https://your-api-service.zeabur.app
 3. 登录、收藏、任务导出接口可正常使用
 4. `web` 不再错误地请求自身同源 API 地址
 
-更详细的部署说明见 `docs/deployment/zeabur.md`，其中包含 `zeabur.yaml`、`web/app`、`api/src/server` 与环境变量的对应关系。
+更详细的部署说明见 `docs/deployment/zeabur.md`，其中包含 `zeabur.yaml`、`zbpack.web.json`、`zbpack.api.json`、`Dockerfile.web`、`Dockerfile.api` 与环境变量的对应关系。
 
 ### 仓库结构
 
 ```text
 .
 ├── zeabur.yaml              # Zeabur 双服务定义
+├── Dockerfile.web           # Web 服务 Dockerfile（按服务名自动匹配）
+├── Dockerfile.api           # API 服务 Dockerfile（按服务名自动匹配）
+├── zbpack.web.json          # Web 服务 Zeabur 构建配置
+├── zbpack.api.json          # API 服务 Zeabur 构建配置
 ├── web/
 │   ├── app/                 # Remix 页面与组件
-│   └── Dockerfile           # Web 服务镜像
 ├── api/
 │   ├── src/
 │   │   └── server/          # Hono API、任务与导出能力
-│   └── Dockerfile           # API 服务镜像
 ├── packages/
 │   └── shared/
 │       └── src/             # 共享 schema 与类型
@@ -249,15 +253,16 @@ See `.env.example` for the baseline template.
 
 This repository is prepared for a split deployment:
 
-- root `zeabur.yaml` declares the `web` and `api` services explicitly
-- `web` uses `web/Dockerfile`
-- `api` uses `api/Dockerfile`
+- root `zeabur.yaml` describes the dual-service setup
+- root `Dockerfile.web` / `Dockerfile.api` let Zeabur auto-match Dockerfiles by service name
+- root `zbpack.web.json` / `zbpack.api.json` pin the monorepo build and start commands
 
 #### 1. Create the `api` service
 
 - source: this repository
-- service directory: `api/`
-- Dockerfile: `api/Dockerfile`
+- service name: `api`
+- Root Directory: `/`
+- Dockerfile: `Dockerfile.api`
 - port: `8787` or the platform-injected `PORT`
 
 Recommended variables:
@@ -272,8 +277,9 @@ TASK_RUNNER_TIMEOUT_MS=900000
 #### 2. Create the `web` service
 
 - source: this repository
-- service directory: `web/`
-- Dockerfile: `web/Dockerfile`
+- service name: `web`
+- Root Directory: `/`
+- Dockerfile: `Dockerfile.web`
 - port: `3000` or the platform-injected `PORT`
 
 Required variable:
@@ -294,20 +300,22 @@ Check at least the following:
 3. login, favorites, and export tasks still work
 4. the `web` service no longer makes incorrect same-origin API requests
 
-Detailed deployment notes are available in `docs/deployment/zeabur.md`, including how `zeabur.yaml`, `web/app`, `api/src/server`, and the required environment variables line up.
+Detailed deployment notes are available in `docs/deployment/zeabur.md`, including how `zeabur.yaml`, `zbpack.web.json`, `zbpack.api.json`, `Dockerfile.web`, `Dockerfile.api`, and the required environment variables line up.
 
 ### Repository layout
 
 ```text
 .
 ├── zeabur.yaml              # Zeabur service manifest
+├── Dockerfile.web           # web Dockerfile matched by service name
+├── Dockerfile.api           # api Dockerfile matched by service name
+├── zbpack.web.json          # web Zeabur build config
+├── zbpack.api.json          # api Zeabur build config
 ├── web/
 │   ├── app/                 # Remix routes and UI
-│   └── Dockerfile           # web image
 ├── api/
 │   ├── src/
 │   │   └── server/          # Hono API, tasks, and exports
-│   └── Dockerfile           # api image
 ├── packages/
 │   └── shared/
 │       └── src/             # shared schema and types

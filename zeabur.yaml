@@ -3,7 +3,7 @@ kind: Template
 metadata:
   name: JM-Aura-Remix v3.0.0
 spec:
-  description: Remix + Hono monorepo，自动创建 web 和 api 两个 Zeabur 服务。
+  description: Remix + Hono monorepo，按服务名自动匹配 Dockerfile.web 与 Dockerfile.api。
   icon: https://raw.githubusercontent.com/Tom6814/JM-Aura/main/archive/JM-Aura/static/favicon.ico
   tags:
     - Web
@@ -27,10 +27,16 @@ spec:
 
     自动创建两个服务：
 
-    - `web`：Remix 前端，根目录为 `web/`
-    - `api`：Hono 后端，根目录为 `api/`
+    - `web`：Remix 前端
+    - `api`：Hono 后端
 
-    这是 `v3.0.0` 的 monorepo 重构版本。部署时会同时创建两个服务，并把：
+    这是 `v3.0.0` 的 monorepo 重构版本。推荐在 Zeabur 中创建两个 Git 服务，并保持：
+
+    - 服务名分别为 `web`、`api`
+    - Root Directory 保持仓库根目录 `/`
+    - 让 Zeabur 自动匹配 `Dockerfile.web` 与 `Dockerfile.api`
+
+    部署时会同时创建两个服务，并把：
 
     - `${WEB_DOMAIN}` 绑定到 `web`
     - `${API_DOMAIN}` 绑定到 `api`
@@ -47,7 +53,6 @@ spec:
           source: GITHUB
           repo: 1149811888
           branch: v3.0.0-monorepo
-          rootDirectory: web
           watchPaths:
             - /web
             - /packages/shared
@@ -71,7 +76,6 @@ spec:
           source: GITHUB
           repo: 1149811888
           branch: v3.0.0-monorepo
-          rootDirectory: api
           watchPaths:
             - /api
             - /packages/shared

@@ -4,6 +4,10 @@
   "description": "",
   "main": "index.js",
   "private": true,
+  "packageManager": "npm@10.9.3",
+  "engines": {
+    "node": "20.x"
+  },
   "workspaces": [
     "web",
     "api",

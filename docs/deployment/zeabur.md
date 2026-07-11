@@ -1,14 +1,14 @@
 # Zeabur 双服务部署说明
 
-本文档说明如何把当前项目作为 **Zeabur 官方模板** 导入，并自动创建 `web` 与 `api` 两个服务。根级 `zeabur.yaml` 现在使用官方 Template Resource 格式，而不是早期的简化自定义写法。Zeabur 官方模板格式要求 `apiVersion`、`kind`、`metadata`、`spec.services` 等字段，并支持 `GIT` 服务的 `repo`、`branch`、`rootDirectory` 与 `watchPaths` [$TRAE_REF](https://zeabur.com/docs/zh-CN/template/template-format)[$TRAE_REF](https://schema.zeabur.app/prebuilt.json)
+本文档说明如何按 Zeabur 当前公开规范部署这个 monorepo。实际可落地、最稳的方式不是把 `web/` 或 `api/` 直接当单独构建根目录，而是从 **仓库根目录 `/`** 创建两个 Git 服务，并让 Zeabur按服务名自动匹配根目录 `Dockerfile.web` 与 `Dockerfile.api`。Zeabur 官方文档对 monorepo Node.js 项目提供 `zbpack.json` / `zbpack.[service].json`、`app_dir`、`build_command`、`start_command` 配置，也支持按服务名自动匹配 `Dockerfile.<service-name>` [$TRAE_REF](https://zeabur.com/docs/en-US/guides/nodejs)[$TRAE_REF](https://zeabur.com/docs/en-US/deploy/methods/dockerfile)
 
 ## 服务划分
 
 ### web
 
 - 作用：运行 Remix 页面服务
-- 服务目录：`web/`
-- Dockerfile：`web/Dockerfile`
+- 服务目录：仓库根目录 `/`
+- Dockerfile：`Dockerfile.web`
 - 关键源码：`web/app/`
 - 构建脚本：`npm run build:web`
 - 启动脚本：`npm run start:web`
@@ -16,8 +16,8 @@
 ### api
 
 - 作用：运行 Hono API 服务
-- 服务目录：`api/`
-- Dockerfile：`api/Dockerfile`
+- 服务目录：仓库根目录 `/`
+- Dockerfile：`Dockerfile.api`
 - 关键源码：`api/src/server/`
 - 构建脚本：`npm run build:api`
 - 启动脚本：`npm run start:api`
@@ -35,7 +35,40 @@ npm run dev:web
 
 ## Zeabur 配置文件
 
-根级 `zeabur.yaml`：
+当前仓库提供两层配置：
+
+1. 根级 `zeabur.yaml`
+2. 根级 `zbpack.web.json` / `zbpack.api.json`
+
+### `zbpack.web.json`
+
+```json
+{
+  "app_dir": "/",
+  "cache_dependencies": false,
+  "build_command": "npm run build:web",
+  "start_command": "npm run start:web",
+  "dockerfile": {
+    "name": "web"
+  }
+}
+```
+
+### `zbpack.api.json`
+
+```json
+{
+  "app_dir": "/",
+  "cache_dependencies": false,
+  "build_command": "npm run build:api",
+  "start_command": "npm run start:api",
+  "dockerfile": {
+    "name": "api"
+  }
+}
+```
+
+### `zeabur.yaml`
 
 ```yaml
 apiVersion: zeabur.com/v1
@@ -54,7 +87,6 @@ spec:
           source: GITHUB
           repo: 1149811888
           branch: v3.0.0-monorepo
-          rootDirectory: web
     - name: api
       template: GIT
       domainKey: API_DOMAIN
@@ -63,14 +95,13 @@ spec:
           source: GITHUB
           repo: 1149811888
           branch: v3.0.0-monorepo
-          rootDirectory: api
 ```
 
 这里最关键的是：
 
 - `repo: 1149811888` 对应 GitHub 仓库 `Tom6814/JM-Aura`
 - `branch: v3.0.0-monorepo` 指向当前 monorepo 分支
-- `rootDirectory: web` / `rootDirectory: api` 告诉 Zeabur 分别从哪个子目录创建服务 [$TRAE_REF](https://schema.zeabur.app/prebuilt.json)
+- 实际部署时建议从仓库根目录 `/` 创建服务，再由服务名和 `zbpack.<service>.json` / `Dockerfile.<service>` 决定构建方式 [$TRAE_REF](https://zeabur.com/docs/en-US/guides/nodejs)[$TRAE_REF](https://zeabur.com/docs/en-US/deploy/methods/dockerfile)
 
 如果你的默认发布分支以后改成 `main`，只需要把 `branch` 改回 `main`。
 
@@ -78,18 +109,21 @@ spec:
 
 ### 1. 通过模板导入
 
-推荐方式不是“手动新建一个源码服务”，而是让 Zeabur 读取根目录 `zeabur.yaml`，把它当成模板一次性导入。  
-这样 Zeabur 会直接创建两个服务：
+推荐方式是从同一个仓库根目录 `/` 创建两个 Git 服务，并把服务名分别命名为：
 
 - `web`
 - `api`
 
-并且自动套用：
+这样 Zeabur 会优先：
 
-- GitHub 仓库 ID
-- 分支
-- 子目录根路径
-- 基础环境变量
+- 读取 `zbpack.web.json` 或 `zbpack.api.json`
+- 用 `Dockerfile.web` 或 `Dockerfile.api` 构建
+
+这比把 Root Directory 改成 `/web` 或 `/api` 更稳，因为当前 Dockerfile 需要仓库根目录里的：
+
+- `package.json`
+- `package-lock.json`
+- `packages/shared/`
 
 ### 2. api 服务环境变量
 
@@ -117,12 +151,16 @@ API_ORIGIN=https://your-api-service.zeabur.app
 API_ORIGIN=https://${API_DOMAIN}
 ```
 
-所以通常不需要再手填，只要在部署向导里把：
+如果你通过普通 Git 服务创建方式部署，依然建议你手动填写：
 
 - `WEB_DOMAIN`
 - `API_DOMAIN`
 
-这两个域名变量填好即可。变量系统和 `DOMAIN` 类型是 Zeabur 模板格式的官方能力 [$TRAE_REF](https://zeabur.com/docs/zh-CN/template/template-format)
+如果只是普通服务，不使用模板变量，也至少要保证：
+
+```env
+API_ORIGIN=https://你的-api-服务公网域名
+```
 
 ## 环境变量说明
 
@@ -147,9 +185,11 @@ API_ORIGIN=https://${API_DOMAIN}
 ## 相关文件
 
 - `zeabur.yaml`
+- `zbpack.web.json`
+- `zbpack.api.json`
 - `package.json`
 - `web/app/lib/jm-rpc.server.ts`
-- `web/Dockerfile`
+- `Dockerfile.web`
 - `api/src/server/index.ts`
-- `api/Dockerfile`
+- `Dockerfile.api`
 - `.env.example`
