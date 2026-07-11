@@ -30,3 +30,16 @@ test("deployment docs use monorepo dockerfile and service paths", async () => {
   assert.doesNotMatch(content, /Dockerfile\.web/);
   assert.doesNotMatch(content, /Dockerfile\.api/);
 });
+
+test("zeabur config uses official template format for web and api services", async () => {
+  const content = await fs.readFile(new URL("./zeabur.yaml", import.meta.url), "utf8");
+
+  assert.match(content, /^apiVersion:\s+zeabur\.com\/v1/m);
+  assert.match(content, /^kind:\s+Template/m);
+  assert.match(content, /template:\s+GIT/);
+  assert.match(content, /repo:\s+1149811888/);
+  assert.match(content, /branch:\s+v3\.0\.0-monorepo/);
+  assert.match(content, /rootDirectory:\s+web/);
+  assert.match(content, /rootDirectory:\s+api/);
+  assert.doesNotMatch(content, /^services:\s*$/m);
+});

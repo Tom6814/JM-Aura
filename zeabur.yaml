@@ -1,7 +1,96 @@
-services:
-  web:
-    root: ./web
-    dockerfile: Dockerfile
-  api:
-    root: ./api
-    dockerfile: Dockerfile
+apiVersion: zeabur.com/v1
+kind: Template
+metadata:
+  name: JM-Aura-Remix v3.0.0
+spec:
+  description: Remix + Hono monorepo，自动创建 web 和 api 两个 Zeabur 服务。
+  icon: https://raw.githubusercontent.com/Tom6814/JM-Aura/main/archive/JM-Aura/static/favicon.ico
+  tags:
+    - Web
+    - Tool
+    - Template
+  variables:
+    - key: WEB_DOMAIN
+      type: DOMAIN
+      name: Web Domain
+      description: 绑定到前端 Remix 服务的域名。
+    - key: API_DOMAIN
+      type: DOMAIN
+      name: API Domain
+      description: 绑定到 Hono API 服务的域名。
+    - key: JM_PROXY_URL
+      type: STRING
+      name: JM Proxy URL
+      description: 如果访问上游 JM 需要代理，在这里填写代理地址；不需要可留空。
+  readme: |-
+    # JM-Aura-Remix v3.0.0
+
+    自动创建两个服务：
+
+    - `web`：Remix 前端，根目录为 `web/`
+    - `api`：Hono 后端，根目录为 `api/`
+
+    这是 `v3.0.0` 的 monorepo 重构版本。部署时会同时创建两个服务，并把：
+
+    - `${WEB_DOMAIN}` 绑定到 `web`
+    - `${API_DOMAIN}` 绑定到 `api`
+
+    API 服务会暴露 `API_PUBLIC_ORIGIN`，Web 服务默认通过 `API_ORIGIN=https://${API_DOMAIN}` 连接到后端。
+  services:
+    - name: web
+      template: GIT
+      domainKey: WEB_DOMAIN
+      dependencies:
+        - api
+      spec:
+        source:
+          source: GITHUB
+          repo: 1149811888
+          branch: v3.0.0-monorepo
+          rootDirectory: web
+          watchPaths:
+            - /web
+            - /packages/shared
+            - /package.json
+            - /package-lock.json
+            - /tsconfig.base.json
+        ports:
+          - id: web
+            port: 3000
+            type: HTTP
+        env:
+          API_ORIGIN:
+            default: https://${API_DOMAIN}
+          PORT:
+            default: "3000"
+    - name: api
+      template: GIT
+      domainKey: API_DOMAIN
+      spec:
+        source:
+          source: GITHUB
+          repo: 1149811888
+          branch: v3.0.0-monorepo
+          rootDirectory: api
+          watchPaths:
+            - /api
+            - /packages/shared
+            - /package.json
+            - /package-lock.json
+            - /tsconfig.base.json
+        ports:
+          - id: http
+            port: 8787
+            type: HTTP
+        env:
+          API_PUBLIC_ORIGIN:
+            default: https://${API_DOMAIN}
+            expose: true
+          JM_PROXY_URL:
+            default: ${JM_PROXY_URL}
+          PORT:
+            default: "8787"
+          TASK_CONCURRENCY:
+            default: "2"
+          TASK_RUNNER_TIMEOUT_MS:
+            default: "900000"

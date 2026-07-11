@@ -1,6 +1,6 @@
 # Zeabur 双服务部署说明
 
-本文档说明如何把当前项目拆成 `web` 与 `api` 两个 Zeabur 服务部署，同时保持本地开发流程不变。根级 `zeabur.yaml` 用来显式声明这两个服务与各自 Dockerfile 所在位置。
+本文档说明如何把当前项目作为 **Zeabur 官方模板** 导入，并自动创建 `web` 与 `api` 两个服务。根级 `zeabur.yaml` 现在使用官方 Template Resource 格式，而不是早期的简化自定义写法。Zeabur 官方模板格式要求 `apiVersion`、`kind`、`metadata`、`spec.services` 等字段，并支持 `GIT` 服务的 `repo`、`branch`、`rootDirectory` 与 `watchPaths` [$TRAE_REF](https://zeabur.com/docs/zh-CN/template/template-format)[$TRAE_REF](https://schema.zeabur.app/prebuilt.json)
 
 ## 服务划分
 
@@ -38,27 +38,60 @@ npm run dev:web
 根级 `zeabur.yaml`：
 
 ```yaml
-services:
-  web:
-    root: ./web
-    dockerfile: Dockerfile
-  api:
-    root: ./api
-    dockerfile: Dockerfile
+apiVersion: zeabur.com/v1
+kind: Template
+metadata:
+  name: JM-Aura-Remix v3.0.0
+spec:
+  services:
+    - name: web
+      template: GIT
+      domainKey: WEB_DOMAIN
+      dependencies:
+        - api
+      spec:
+        source:
+          source: GITHUB
+          repo: 1149811888
+          branch: v3.0.0-monorepo
+          rootDirectory: web
+    - name: api
+      template: GIT
+      domainKey: API_DOMAIN
+      spec:
+        source:
+          source: GITHUB
+          repo: 1149811888
+          branch: v3.0.0-monorepo
+          rootDirectory: api
 ```
 
-这样 Zeabur 会分别在 `web/` 与 `api/` 目录下使用各自的 `Dockerfile`。
+这里最关键的是：
+
+- `repo: 1149811888` 对应 GitHub 仓库 `Tom6814/JM-Aura`
+- `branch: v3.0.0-monorepo` 指向当前 monorepo 分支
+- `rootDirectory: web` / `rootDirectory: api` 告诉 Zeabur 分别从哪个子目录创建服务 [$TRAE_REF](https://schema.zeabur.app/prebuilt.json)
+
+如果你的默认发布分支以后改成 `main`，只需要把 `branch` 改回 `main`。
 
 ## Zeabur 部署步骤
 
-### 1. 创建 api 服务
+### 1. 通过模板导入
 
-- 仓库来源：当前项目仓库
-- 服务目录：`api/`
-- Dockerfile：`api/Dockerfile`
-- 暴露端口：`8787`（或直接使用 Zeabur 注入的 `PORT`）
+推荐方式不是“手动新建一个源码服务”，而是让 Zeabur 读取根目录 `zeabur.yaml`，把它当成模板一次性导入。  
+这样 Zeabur 会直接创建两个服务：
 
-建议环境变量：
+- `web`
+- `api`
+
+并且自动套用：
+
+- GitHub 仓库 ID
+- 分支
+- 子目录根路径
+- 基础环境变量
+
+### 2. api 服务环境变量
 
 ```env
 PORT=8787
@@ -69,12 +102,7 @@ TASK_RUNNER_TIMEOUT_MS=900000
 
 如果你需要通过代理访问 JM 上游，请填写 `JM_PROXY_URL`；否则可以留空。
 
-### 2. 创建 web 服务
-
-- 仓库来源：当前项目仓库
-- 服务目录：`web/`
-- Dockerfile：`web/Dockerfile`
-- 暴露端口：`3000`（或直接使用 Zeabur 注入的 `PORT`）
+### 3. web 服务环境变量
 
 关键环境变量：
 
@@ -83,7 +111,18 @@ PORT=3000
 API_ORIGIN=https://your-api-service.zeabur.app
 ```
 
-`API_ORIGIN` 必须指向上一步 `api` 服务的公网地址。`getApiOrigin()` 会优先读取该值，并自动去掉尾部 `/`。
+如果你通过模板导入，`web` 服务默认已经会拿到：
+
+```env
+API_ORIGIN=https://${API_DOMAIN}
+```
+
+所以通常不需要再手填，只要在部署向导里把：
+
+- `WEB_DOMAIN`
+- `API_DOMAIN`
+
+这两个域名变量填好即可。变量系统和 `DOMAIN` 类型是 Zeabur 模板格式的官方能力 [$TRAE_REF](https://zeabur.com/docs/zh-CN/template/template-format)
 
 ## 环境变量说明
 
@@ -103,6 +142,7 @@ API_ORIGIN=https://your-api-service.zeabur.app
 2. 搜索、发现、详情等页面能正常请求 `api` 服务。
 3. 登录、收藏、任务导出接口正常工作。
 4. `web` 日志中不再出现错误的同源 API 请求地址。
+5. Zeabur 项目里会直接出现两个服务，而不是只识别成一个 `web` 服务。
 
 ## 相关文件
 
