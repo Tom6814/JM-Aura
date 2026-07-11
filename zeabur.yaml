@@ -1,0 +1,7 @@
+services:
+  web:
+    root: ./web
+    dockerfile: Dockerfile
+  api:
+    root: ./api
+    dockerfile: Dockerfile

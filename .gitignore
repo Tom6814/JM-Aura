@@ -1,0 +1,16 @@
+node_modules/
+build/
+build-server/
+public/build/
+.cache/
+.DS_Store
+.env
+exports/
+archive/.superpowers/
+archive/.trae-html-share-packages/
+*.zip
+*.log
+*.log.gz
+JM-Aura-Remix-v3.0.0-monorepo/
+JM-Aura-Remix-v3.0.0-source-updated/
+JM-Aura-Remix-v3.0.0-source/

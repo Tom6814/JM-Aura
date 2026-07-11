@@ -1,0 +1,12 @@
+{
+  "name": "@jm-aura/api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx src/server/dev.ts",
+    "build": "tsc --noEmit --project tsconfig.json",
+    "start": "tsx src/server/dev.ts",
+    "typecheck": "tsc --noEmit --project tsconfig.json",
+    "test": "node --import tsx --test"
+  }
+}

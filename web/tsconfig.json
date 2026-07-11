@@ -1,0 +1,9 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": "..",
+    "rootDir": "..",
+    "noEmit": true
+  },
+  "include": ["app", "../packages/shared/src", "../api/src/server"]
+}
