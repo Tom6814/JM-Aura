@@ -4,12 +4,9 @@ import Button from '@mui/material/Button'
 import Card from '@mui/material/Card'
 import CardContent from '@mui/material/CardContent'
 import CardMedia from '@mui/material/CardMedia'
-import CasinoIcon from '@mui/icons-material/Casino'
 import PlayArrowIcon from '@mui/icons-material/PlayArrow'
-import SearchIcon from '@mui/icons-material/Search'
 import Typography from '@mui/material/Typography'
 import { api } from '../api'
-import { BRAND_GRADIENT, HEADING_FONT } from '../theme'
 import { CenterLoading, ComicCard, ErrorState, SectionTitle, useAsync } from '../components'
 import type { ComicSummary } from '../types'
 import { useAuth } from '../auth'
@@ -27,6 +24,11 @@ export function rawListToSummaries(data: unknown): ComicSummary[] {
     const id = it.id ?? it.album_id ?? it.aid
     if (id === undefined || id === null || String(id) === '') continue
     const authorRaw = it.author
+    const rawImage = it.image ? String(it.image) : ''
+    const coverUrl =
+      rawImage.startsWith('http') || rawImage.startsWith('/')
+        ? rawImage
+        : `https://cdn-msp.jmapiproxy2.jp/media/albums/${id}.jpg`
     out.push({
       source: 'jm',
       comic_id: String(id),
@@ -36,7 +38,7 @@ export function rawListToSummaries(data: unknown): ComicSummary[] {
         : authorRaw
           ? String(authorRaw)
           : null,
-      cover_url: it.image ? String(it.image) : null,
+      cover_url: coverUrl,
       tags: [],
     })
   }
