@@ -438,7 +438,9 @@ func handleFavorites(w http.ResponseWriter, r *http.Request) {
 	identity := effIdentityOf(r)
 	run := func() (map[string]any, error) {
 		ck := store.LoadCookies(identity)
-		res, ferr := apiClient().APIGet(r.Context(), "/favorite", favoriteQuery(page, fid), ck)
+		ctx, cancel := context.WithTimeout(r.Context(), 12*time.Second)
+		defer cancel()
+		res, ferr := apiClient().APIGet(ctx, "/favorite", favoriteQuery(page, fid), ck)
 		if ferr != nil {
 			return nil, ferr
 		}

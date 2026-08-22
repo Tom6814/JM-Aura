@@ -200,7 +200,7 @@ export default function Home() {
 
   return (
     <Box>
-      <ContinueReading />
+      {false && <ContinueReading />}
 
       {promote.loading ? (
         <CenterLoading />
