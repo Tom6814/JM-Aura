@@ -83,12 +83,16 @@ type AlbumData struct {
 type PhotoData struct {
 	ID         json.Number   `json:"id"`
 	Name       string        `json:"name"`
+	Sort       json.Number   `json:"sort"`
 	Tags       string        `json:"tags"`
 	Images     []string      `json:"images"`
 	SeriesID   string        `json:"series_id"`
 	Series     []SeriesEntry `json:"series"`
 	IsFavorite bool          `json:"is_favorite"`
 	Liked      bool          `json:"liked"`
+
+	ScrambleID         json.Number `json:"scramble_id"`
+	DataOriginalDomain any         `json:"data_original_domain"`
 }
 
 type LoginResult struct {

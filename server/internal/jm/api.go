@@ -1,6 +1,7 @@
 package jm
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"net/url"
@@ -27,23 +28,27 @@ func (c *Client) Setting(ctx context.Context, cookies map[string]string) (map[st
 	return captured, nil
 }
 
-func (c *Client) Login(ctx context.Context, username, password string) (*LoginResult, map[string]string, error) {
+func (c *Client) Login(ctx context.Context, username, password string) (*LoginResult, map[string]string, map[string]any, error) {
 	form := url.Values{}
 	form.Set("username", username)
 	form.Set("password", password)
 	res, err := c.APIPost(ctx, "/login", form, nil)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, nil, err
 	}
 	var lr LoginResult
 	if jerr := json.Unmarshal(res.Data, &lr); jerr != nil {
-		return nil, nil, jerr
+		return nil, nil, nil, jerr
 	}
+	rawMap := map[string]any{}
+	dec := json.NewDecoder(bytes.NewReader(res.Data))
+	dec.UseNumber()
+	_ = dec.Decode(&rawMap)
 	captured := CaptureSetCookies(res.Header)
 	if lr.S != "" {
 		captured["AVS"] = lr.S
 	}
-	return &lr, captured, nil
+	return &lr, captured, rawMap, nil
 }
 
 func (c *Client) Signup(ctx context.Context, username, password, email, verification, gender string, cookies map[string]string) ([]byte, error) {
@@ -60,18 +65,24 @@ func (c *Client) Signup(ctx context.Context, username, password, email, verifica
 	return c.PostWebForm(ctx, "/signup", form, cookies)
 }
 
-func (c *Client) Album(ctx context.Context, albumID string, cookies map[string]string) (*AlbumData, error) {
+func (c *Client) Album(ctx context.Context, albumID string, cookies map[string]string) (*AlbumData, map[string]any, error) {
 	q := url.Values{}
 	q.Set("id", albumID)
 	res, err := c.APIGet(ctx, "/album", q, cookies)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	var ad AlbumData
 	if jerr := json.Unmarshal(res.Data, &ad); jerr != nil {
-		return nil, jerr
+		return nil, nil, jerr
 	}
-	return &ad, nil
+	raw := map[string]any{}
+	dec := json.NewDecoder(bytes.NewReader(res.Data))
+	dec.UseNumber()
+	if jerr := dec.Decode(&raw); jerr != nil {
+		return &ad, nil, jerr
+	}
+	return &ad, raw, nil
 }
 
 func (c *Client) Chapter(ctx context.Context, chapterID string, cookies map[string]string) (*PhotoData, error) {
@@ -126,9 +137,9 @@ func (c *Client) Categories(ctx context.Context, cookies map[string]string) (*Ca
 	return c.APIGet(ctx, "/categories", nil, cookies)
 }
 
-func (c *Client) Promote(ctx context.Context, page int, cookies map[string]string) (*CallResult, error) {
+func (c *Client) Promote(ctx context.Context, page string, cookies map[string]string) (*CallResult, error) {
 	q := url.Values{}
-	q.Set("page", strconv.Itoa(page))
+	q.Set("page", page)
 	return c.APIGet(ctx, "/promote", q, cookies)
 }
 

@@ -50,6 +50,7 @@ type Client struct {
 	apiDomains   []string
 	imageDomains []string
 	webDomains   []string
+	lastOK       string
 }
 
 func NewClient() *Client {
@@ -111,6 +112,13 @@ func (c *Client) noteOK(d string) {
 		}
 	}
 	c.apiDomains = out
+	c.lastOK = "https://" + d
+}
+
+func (c *Client) LastOKAPIBase() string {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.lastOK
 }
 
 func (c *Client) doRequest(ctx context.Context, method, fullURL string, form url.Values, header http.Header) (int, []byte, http.Header, error) {
@@ -269,8 +277,8 @@ func (c *Client) APICall(ctx context.Context, method, path string, query url.Val
 				full += "?" + query.Encode()
 			}
 			status, body, hdr, err := c.doRequest(ctx, method, full, form, h)
-			if err == nil && status >= 500 {
-				err = fmt.Errorf("jm: http %d from %s", status, d)
+			if err == nil && status != http.StatusOK {
+				err = fmt.Errorf("jm: HTTP %d from %s", status, d)
 			}
 			if err != nil {
 				lastErr = err
@@ -385,9 +393,9 @@ func (c *Client) ScrambleID(ctx context.Context, chapterID string, cookies map[s
 }
 
 // Latest fetches /latest?page= (GetLatestInfoReq2).
-func (c *Client) Latest(ctx context.Context, page int, cookies map[string]string) (*CallResult, error) {
+func (c *Client) Latest(ctx context.Context, page string, cookies map[string]string) (*CallResult, error) {
 	q := url.Values{}
-	q.Set("page", strconv.Itoa(page))
+	q.Set("page", page)
 	return c.APIGet(ctx, "/latest", q, cookies)
 }
 
