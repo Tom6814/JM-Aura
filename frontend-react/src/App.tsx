@@ -362,6 +362,8 @@ export default function App() {
   const isExpanded = useMediaQuery(theme.breakpoints.up('lg'))
   const [drawerOpen, setDrawerOpen] = useState(false)
   const { mode, toggle } = useThemeMode()
+  const location = useLocation()
+  const isReader = location.pathname.startsWith('/reader/')
 
   const drawerPaper = useMemo(
     () => ({ width: DRAWER_WIDTH, bgcolor: 'aura.surfaceContainerLow' }),
@@ -370,20 +372,22 @@ export default function App() {
 
   return (
     <Box sx={{ display: 'flex', minHeight: '100dvh' }}>
-      <AppBar position="fixed" sx={{ zIndex: (t) => t.zIndex.drawer + 1 }}>
-        <Toolbar sx={{ gap: 1 }}>
-          <Logo />
-          <Box sx={{ flexGrow: 1 }} />
-          <Tooltip title={mode === 'dark' ? '切换到浅色' : '切换到深色'}>
-            <IconButton onClick={toggle} aria-label="切换主题">
-              {mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
-            </IconButton>
-          </Tooltip>
-          <UserArea />
-        </Toolbar>
-      </AppBar>
+      {!isReader && (
+        <AppBar position="fixed" sx={{ zIndex: (t) => t.zIndex.drawer + 1 }}>
+          <Toolbar sx={{ gap: 1 }}>
+            <Logo />
+            <Box sx={{ flexGrow: 1 }} />
+            <Tooltip title={mode === 'dark' ? '切换到浅色' : '切换到深色'}>
+              <IconButton onClick={toggle} aria-label="切换主题">
+                {mode === 'dark' ? <LightModeIcon /> : <DarkModeIcon />}
+              </IconButton>
+            </Tooltip>
+            <UserArea />
+          </Toolbar>
+        </AppBar>
+      )}
 
-      {isExpanded && (
+      {isExpanded && !isReader && (
         <Drawer
           variant="permanent"
           sx={{
@@ -396,7 +400,7 @@ export default function App() {
         </Drawer>
       )}
 
-      {!isExpanded && isRail && (
+      {!isExpanded && isRail && !isReader && (
         <Drawer
           variant="permanent"
           sx={{
@@ -415,9 +419,9 @@ export default function App() {
         </Drawer>
       )}
 
-      {!isRail && <BottomBar onMore={() => setDrawerOpen(true)} />}
+      {!isRail && !isReader && <BottomBar onMore={() => setDrawerOpen(true)} />}
 
-      {!isExpanded && (
+      {!isExpanded && !isReader && (
         <Drawer open={drawerOpen} onClose={() => setDrawerOpen(false)} slotProps={{ paper: { sx: drawerPaper } }}>
           <DrawerContent onNavigate={() => setDrawerOpen(false)} />
         </Drawer>
@@ -432,9 +436,10 @@ export default function App() {
           pb: { xs: 'calc(92px + env(safe-area-inset-bottom))', md: 3 },
           maxWidth: 1400,
           mx: 'auto',
+          ...(isReader && { p: 0, maxWidth: 'none' }),
         }}
       >
-        <Toolbar />
+        {!isReader && <Toolbar />}
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/search" element={<Search />} />
@@ -451,14 +456,16 @@ export default function App() {
           <Route path="/login" element={<Login />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-        <Box component="footer" sx={{ py: 5, textAlign: 'center' }}>
-          <Stack direction="row" spacing={1} justifyContent="center" alignItems="center">
-            <StarIcon fontSize="small" sx={{ opacity: 0.4 }} />
-            <Typography variant="caption" color="text.secondary">
-              由 Material Design 3 与 Go 驱动
-            </Typography>
-          </Stack>
-        </Box>
+        {!isReader && (
+          <Box component="footer" sx={{ py: 5, textAlign: 'center' }}>
+            <Stack direction="row" spacing={1} justifyContent="center" alignItems="center">
+              <StarIcon fontSize="small" sx={{ opacity: 0.4 }} />
+              <Typography variant="caption" color="text.secondary">
+                由 Material Design 3 与 Go 驱动
+              </Typography>
+            </Stack>
+          </Box>
+        )}
       </Box>
     </Box>
   )

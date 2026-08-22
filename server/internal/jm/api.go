@@ -87,6 +87,8 @@ func (c *Client) Album(ctx context.Context, albumID string, cookies map[string]s
 
 func (c *Client) Chapter(ctx context.Context, chapterID string, cookies map[string]string) (*PhotoData, error) {
 	q := url.Values{}
+	q.Set("comicName", "")
+	q.Set("skip", "")
 	q.Set("id", chapterID)
 	res, err := c.APIGet(ctx, "/chapter", q, cookies)
 	if err != nil {
