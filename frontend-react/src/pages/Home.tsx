@@ -25,10 +25,14 @@ export function rawListToSummaries(data: unknown): ComicSummary[] {
     if (id === undefined || id === null || String(id) === '') continue
     const authorRaw = it.author
     const rawImage = it.image ? String(it.image) : ''
-    const coverUrl =
-      rawImage.startsWith('http') || rawImage.startsWith('/')
-        ? rawImage
-        : `https://cdn-msp.jmapiproxy2.jp/media/albums/${id}.jpg`
+    let coverUrl: string | null
+    if (rawImage.startsWith('http') || rawImage.startsWith('/')) {
+      coverUrl = rawImage
+    } else {
+      coverUrl = `/api/image-proxy?url=${encodeURIComponent(
+        `https://cdn-msp.jmapiproxy2.cc/media/albums/${id}.jpg`,
+      )}`
+    }
     out.push({
       source: 'jm',
       comic_id: String(id),
