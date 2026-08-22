@@ -194,56 +194,6 @@ export default function Home() {
 
   return (
     <Box>
-      <Card
-        sx={{
-          mb: 4,
-          borderRadius: 3.5,
-          overflow: 'hidden',
-          position: 'relative',
-        }}
-      >
-        <Box
-          aria-hidden
-          sx={{
-            position: 'absolute',
-            inset: 0,
-            background: (t) =>
-              `radial-gradient(700px 300px at 15% 0%, ${t.palette.aura.primary}${t.palette.mode === 'dark' ? '38' : '4D'}, transparent 60%), radial-gradient(600px 300px at 90% 100%, ${t.palette.aura.tertiary}${t.palette.mode === 'dark' ? '24' : '33'}, transparent 55%)`,
-          }}
-        />
-        <CardContent sx={{ position: 'relative', py: { xs: 4, md: 6 }, px: { xs: 3, md: 5 }, textAlign: 'center' }}>
-          <Typography
-            variant="h3"
-            component="h1"
-            gutterBottom
-            sx={{
-              fontFamily: HEADING_FONT,
-              fontWeight: 600,
-              letterSpacing: '0.04em',
-              backgroundImage: BRAND_GRADIENT,
-              WebkitBackgroundClip: 'text',
-              backgroundClip: 'text',
-              color: 'transparent',
-              width: 'fit-content',
-              mx: 'auto',
-            }}
-          >
-            沉浸阅读
-          </Typography>
-          <Typography color="text.secondary" mb={3}>
-            官方数据同源 · 真全屏阅读器 · 手机优先的纸感体验
-          </Typography>
-          <Box sx={{ display: 'flex', gap: 1.5, justifyContent: 'center', flexWrap: 'wrap' }}>
-            <Button variant="contained" size="large" startIcon={<CasinoIcon />} component={RouterLink} to="/random">
-              随机来一本
-            </Button>
-            <Button variant="outlined" size="large" startIcon={<SearchIcon />} component={RouterLink} to="/search">
-              搜索作品
-            </Button>
-          </Box>
-        </CardContent>
-      </Card>
-
       <ContinueReading />
 
       {promote.loading ? (
