@@ -61,21 +61,6 @@ export interface V2Comment {
   [key: string]: unknown
 }
 
-export interface DownloadTask {
-  task_id: string
-  status: string
-  progress?: number
-  total_chapters?: number
-  completed_chapters?: number
-  current_chapter?: string | null
-  error?: string | null
-  download_url?: string | null
-  album_id?: string
-  title?: string
-  created_at?: string
-  [key: string]: unknown
-}
-
 export interface V2UserProfile {
   source: string
   username?: string | null
@@ -83,18 +68,6 @@ export interface V2UserProfile {
   avatar_url?: string | null
   signature?: string | null
   raw?: Record<string, unknown>
-}
-
-export interface CategoryItem {
-  [key: string]: unknown
-}
-
-export interface HistoryEntry {
-  [key: string]: unknown
-}
-
-export interface FolderInfo {
-  [key: string]: unknown
 }
 
 /** 图片代理地址（同源，供 DescrambledImage 以 crossOrigin 加载） */

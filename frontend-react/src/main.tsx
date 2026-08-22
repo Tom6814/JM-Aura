@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { StrictMode, useCallback, useMemo, useState } from 'react'
 import ReactDOM from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import CssBaseline from '@mui/material/CssBaseline'
@@ -55,7 +55,7 @@ function Root() {
 document.documentElement.style.colorScheme = detectInitialMode()
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
+  <StrictMode>
     <Root />
-  </React.StrictMode>,
+  </StrictMode>,
 )

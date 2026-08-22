@@ -53,7 +53,8 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (st !== STATUS_OK) {
     throw new ApiError(st, body.msg || `请求失败（st=${st}）`, res.status)
   }
-  return body.data as T
+  // 信封端点返回 data；legacy 裸响应（如 /api/config，st 内嵌且无 data 键）返回整个响应体。
+  return (body.data !== undefined ? body.data : body) as T
 }
 
 function jsonInit(method: string, body?: unknown): RequestInit {
