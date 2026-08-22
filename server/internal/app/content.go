@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"log"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -52,6 +53,13 @@ func lastSeg(s string) string {
 
 func lastPathSeg(p string) string {
 	return lastSeg(strings.TrimRight(p, "/"))
+}
+
+func truncStr(s string, n int) string {
+	if len(s) <= n {
+		return s
+	}
+	return s[:n]
 }
 
 func atoiDefault(s string, def int) int {
@@ -348,6 +356,7 @@ func fetchJmChapter(ctx context.Context, ck map[string]string, photoID string) (
 	// 需回退 /chapter_view_template 提取（对齐 legacy handleChapter 与 Python 官方实现）。
 	if sc == "" || sc == "0" || dom == nil || dom == "" {
 		if tpl, terr := apiClient().ChapterViewTemplate(ctx, photoID, ck); terr == nil {
+			log.Printf("[DEBUG] chapter_view_template photoID=%s htmlLen=%d first500=%q", photoID, len(tpl), truncStr(string(tpl), 500))
 			tplInfo := parseChapterViewTemplate(string(tpl))
 			if (sc == "" || sc == "0") && tplInfo["scramble_id"] != nil {
 				if s, ok := tplInfo["scramble_id"].(string); ok && s != "" && s != "0" {
