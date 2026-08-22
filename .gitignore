@@ -52,3 +52,4 @@ server/jmaura
 
 # 前端依赖与构建中间物
 frontend-react/node_modules/
+jmaura.log

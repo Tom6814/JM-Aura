@@ -13,7 +13,6 @@ import Slider from '@mui/material/Slider'
 import Typography from '@mui/material/Typography'
 import ArrowBackIcon from '@mui/icons-material/ArrowBack'
 import CheckCircleIcon from '@mui/icons-material/CheckCircle'
-import FavoriteIcon from '@mui/icons-material/Favorite'
 import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder'
 import MenuBookIcon from '@mui/icons-material/MenuBook'
 import NavigateBeforeIcon from '@mui/icons-material/NavigateBefore'
@@ -118,7 +117,6 @@ export default function Reader() {
   const [sheet, setSheet] = useState<null | 'chapters' | 'settings'>(null)
   const [sheetTab, setSheetTab] = useState<'chapters' | 'settings'>('chapters')
   const [controls, setControls] = useState(true)
-  const [favOn, setFavOn] = useState(false)
   const [favBusy, setFavBusy] = useState(false)
 
   const [start, setStart] = useState(0)
@@ -384,7 +382,6 @@ export default function Reader() {
     setFavBusy(true)
     try {
       await api.post(`/api/v2/jm/comic/${encodeURIComponent(albumId)}/favorite`)
-      setFavOn((v) => !v)
       toast('收藏状态已更新')
     } catch (e) {
       if (e instanceof ApiError && e.st === 1014) window.dispatchEvent(new Event(UNAUTHORIZED_EVENT))
@@ -550,10 +547,9 @@ export default function Reader() {
               onClick={() => openSheet('chapters')}
             />
             <DockButton
-              icon={favOn ? <FavoriteIcon fontSize="small" /> : <FavoriteBorderIcon fontSize="small" />}
+              icon={<FavoriteBorderIcon fontSize="small" />}
               label="喜欢"
               disabled={!albumId || favBusy}
-              active={favOn}
               onClick={() => void toggleFav()}
             />
             <DockButton icon={<NavigateNextIcon fontSize="small" />} label="下一话" disabled={!nextCh} onClick={() => jump(nextCh?.id)} trailing />
@@ -585,6 +581,7 @@ export default function Reader() {
       >
         <Box
           ref={hitRef}
+          onClick={(e) => e.stopPropagation()}
           onPointerDown={(e) => {
             dragging.current = true
             e.currentTarget.setPointerCapture?.(e.pointerId)
@@ -863,14 +860,12 @@ function DockButton({
   label,
   onClick,
   disabled,
-  active,
   trailing,
 }: {
   icon: React.ReactNode
   label: string
   onClick: () => void
   disabled?: boolean
-  active?: boolean
   trailing?: boolean
 }) {
   return (
@@ -887,14 +882,14 @@ function DockButton({
         border: 'none',
         cursor: disabled ? 'not-allowed' : 'pointer',
         borderRadius: '14px',
-        bgcolor: active ? 'primary.main' : 'rgba(255,255,255,0.06)',
+        bgcolor: 'rgba(255,255,255,0.06)',
         color: '#fff',
         fontSize: 12,
         fontWeight: 600,
         opacity: disabled ? 0.4 : 1,
         transition: 'background .2s ease, transform .1s ease',
         '&:active': { transform: 'scale(0.95)' },
-        '&:hover': { bgcolor: active ? 'primary.main' : 'rgba(255,255,255,0.12)' },
+        '&:hover': { bgcolor: 'rgba(255,255,255,0.12)' },
       }}
     >
       {!trailing && icon}
