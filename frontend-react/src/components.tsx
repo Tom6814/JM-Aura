@@ -69,10 +69,7 @@ export function CenterLoading({ label }: { label?: string }) {
 
 export function ErrorState({ message, onRetry }: { message: string; onRetry?: () => void }) {
   return (
-    <Alert
-      severity="error"
-      sx={{ borderRadius: 3 }}
-      action={
+    <Alert severity="error" action={
         onRetry && (
           <Button color="inherit" size="small" onClick={onRetry}>
             重试

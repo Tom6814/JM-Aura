@@ -7,6 +7,7 @@ import CasinoIcon from '@mui/icons-material/Casino'
 import SearchIcon from '@mui/icons-material/Search'
 import Typography from '@mui/material/Typography'
 import { api } from '../api'
+import { BRAND_GRADIENT } from '../theme'
 import { ComicGrid, CenterLoading, ErrorState, SectionTitle, useAsync } from '../components'
 import type { ComicSummary } from '../types'
 
@@ -48,7 +49,7 @@ export default function Home() {
       <Card
         sx={{
           mb: 4,
-          borderRadius: 5,
+          borderRadius: 3.5,
           overflow: 'hidden',
           position: 'relative',
         }}
@@ -59,13 +60,24 @@ export default function Home() {
             position: 'absolute',
             inset: 0,
             background: (t) =>
-              t.palette.mode === 'dark'
-                ? 'radial-gradient(700px 300px at 15% 0%, rgba(167,139,250,0.22), transparent 60%), radial-gradient(600px 300px at 90% 100%, rgba(232,121,249,0.14), transparent 55%)'
-                : 'radial-gradient(700px 300px at 15% 0%, rgba(167,139,250,0.30), transparent 60%), radial-gradient(600px 300px at 90% 100%, rgba(232,121,249,0.20), transparent 55%)',
+              `radial-gradient(700px 300px at 15% 0%, ${t.palette.aura.primary}${t.palette.mode === 'dark' ? '38' : '4D'}, transparent 60%), radial-gradient(600px 300px at 90% 100%, ${t.palette.aura.tertiary}${t.palette.mode === 'dark' ? '24' : '33'}, transparent 55%)`,
           }}
         />
         <CardContent sx={{ position: 'relative', py: { xs: 4, md: 6 }, px: { xs: 3, md: 5 }, textAlign: 'center' }}>
-          <Typography variant="h4" fontWeight={800} gutterBottom>
+          <Typography
+            variant="h3"
+            component="h1"
+            fontWeight={500}
+            gutterBottom
+            sx={{
+              backgroundImage: BRAND_GRADIENT,
+              WebkitBackgroundClip: 'text',
+              backgroundClip: 'text',
+              color: 'transparent',
+              width: 'fit-content',
+              mx: 'auto',
+            }}
+          >
             探索你的漫画宇宙
           </Typography>
           <Typography color="text.secondary" mb={3}>
