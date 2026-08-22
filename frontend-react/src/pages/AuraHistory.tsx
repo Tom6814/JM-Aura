@@ -51,7 +51,7 @@ export default function AuraHistory() {
     return (
       <EmptyState
         icon={<HistoryIcon />}
-        text="登录 Aura 账号后可同步阅读历史"
+        text="登录 JM 账号后可同步阅读历史"
         action={
           <Button component={RouterLink} to="/login" variant="contained">
             去登录

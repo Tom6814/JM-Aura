@@ -14,15 +14,9 @@ import (
 	"jmaura/internal/store"
 )
 
-const (
-	sessionCookieName = "jm_aura_sid"
-	guestCookieName   = "jm_aura_gid"
-)
+const sessionCookieName = "jm_aura_sid"
 
-var (
-	registerLimiter = newRateLimiter(time.Minute)
-	loginLimiter    = newRateLimiter(time.Minute)
-)
+var loginLimiter = newRateLimiter(time.Minute)
 
 func getSiteUser(r *http.Request) string {
 	c, err := r.Cookie(sessionCookieName)
@@ -89,57 +83,6 @@ func handleJmDebug(w http.ResponseWriter, r *http.Request) {
 	}, ""))
 }
 
-func handleSiteAdminCreateUser(w http.ResponseWriter, r *http.Request) {
-	adminU := getSiteUser(r)
-	if adminU == "" || !store.IsAdmin(adminU) {
-		writeJSON(w, 403, errSt(StatusUserError, "Forbidden"))
-		return
-	}
-	var body map[string]any
-	_ = json.NewDecoder(r.Body).Decode(&body)
-	username := strBody(body["username"])
-	password := strBody(body["password"])
-	if cerr := store.CreateUser(username, password, false); cerr != nil {
-		writeJSON(w, 200, errSt(StatusUserError, cerr.Error()))
-		return
-	}
-	writeJSON(w, 200, ok(map[string]any{"status": "success"}, ""))
-}
-
-func handleJmBinding(w http.ResponseWriter, r *http.Request) {
-	siteU := getSiteUser(r)
-	hasSaved := false
-	savedJMUsername := ""
-	if siteU != "" {
-		hasSaved = store.CredHas(siteU)
-		savedJMUsername = store.CredActiveUsername(siteU)
-	}
-	jmLoggedIn := liveJMSession(r)
-	writeJSON(w, 200, ok(map[string]any{
-		"site_logged_in":        siteU != "",
-		"site_username":         siteU,
-		"can_save_credentials":  siteU != "",
-		"has_saved_credentials": hasSaved,
-		"saved_jm_username":     savedJMUsername,
-		"jm_logged_in":          jmLoggedIn,
-		"jm_username":           savedJMUsername,
-	}, ""))
-}
-
-func handleJmUnbind(w http.ResponseWriter, r *http.Request) {
-	identity := effIdentityOf(r)
-	_ = store.ClearCookies(identity)
-	store.JmClearUserData(identity)
-	if siteU := getSiteUser(r); siteU != "" {
-		_ = store.CredClear(siteU)
-	}
-	writeJSON(w, 200, ok(map[string]any{"status": "success"}, ""))
-}
-
-func handleSiteStatus(w http.ResponseWriter, r *http.Request) {
-	writeJSON(w, 200, ok(map[string]any{"has_users": store.HasAnyUser()}, ""))
-}
-
 func legacyCookieCandidates() []string {
 	if v := strings.TrimSpace(os.Getenv("JM_AURA_LEGACY_COOKIES")); v != "" {
 		return []string{v}
@@ -204,29 +147,6 @@ func migrateLegacyCookiesToUser(user string) bool {
 func runPostAuthMigrations(username string) {
 	migrateOpYmlCredentials(strings.TrimSpace(username))
 	migrateLegacyCookiesToUser(strings.TrimSpace(username))
-}
-
-func handleSiteRegister(w http.ResponseWriter, r *http.Request) {
-	if !registerLimiter.allow(remoteAddrKey(r), 5) {
-		httpDetail(w, 429, "Rate limit exceeded")
-		return
-	}
-	var body map[string]any
-	_ = json.NewDecoder(r.Body).Decode(&body)
-	if body == nil {
-		body = map[string]any{}
-	}
-	username := strBody(body["username"])
-	password := strBody(body["password"])
-	adminFlag := !store.HasAnyUser()
-	if cerr := store.CreateUser(username, password, adminFlag); cerr != nil {
-		writeJSON(w, 200, errSt(StatusUserError, cerr.Error()))
-		return
-	}
-	sid, _ := store.CreateSession(username)
-	runPostAuthMigrations(username)
-	writeJSON(w, 200, ok(map[string]any{"username": username, "is_admin": adminFlag}, ""))
-	setSessionCookie(w, r, sid, 7*86400)
 }
 
 func handleSiteLogin(w http.ResponseWriter, r *http.Request) {

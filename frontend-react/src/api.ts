@@ -48,7 +48,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const st = typeof body.st === 'number' ? body.st : res.ok ? STATUS_OK : -1
   if (st === STATUS_NOT_LOGIN) {
     window.dispatchEvent(new Event(UNAUTHORIZED_EVENT))
-    throw new ApiError(STATUS_NOT_LOGIN, '请先登录 Aura 账号', res.status)
+    throw new ApiError(STATUS_NOT_LOGIN, '请先登录 JM 账号', res.status)
   }
   if (st !== STATUS_OK) {
     throw new ApiError(st, body.msg || `请求失败（st=${st}）`, res.status)

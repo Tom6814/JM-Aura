@@ -23,11 +23,6 @@ func NewRouter() *http.ServeMux {
 
 	route(mux, http.MethodGet, "/api/client-info", handleClientInfo)
 	route(mux, http.MethodGet, "/api/jm/debug", handleJmDebug)
-	route(mux, http.MethodPost, "/api/site/admin/create-user", handleSiteAdminCreateUser)
-	route(mux, http.MethodGet, "/api/jm/binding", handleJmBinding)
-	route(mux, http.MethodPost, "/api/jm/unbind", handleJmUnbind)
-	route(mux, http.MethodGet, "/api/site/status", handleSiteStatus)
-	route(mux, http.MethodPost, "/api/site/register", handleSiteRegister)
 	route(mux, http.MethodPost, "/api/site/login", handleSiteLogin)
 	route(mux, http.MethodPost, "/api/site/logout", handleSiteLogout)
 	route(mux, http.MethodGet, "/api/site/me", handleSiteMe)
@@ -44,11 +39,6 @@ func NewRouter() *http.ServeMux {
 	route(mux, http.MethodPost, "/api/aura/library/folders/toggle", handleAuraFolderToggle)
 	route(mux, http.MethodGet, "/api/aura/library/notes/{album_id}", handleAuraNoteGet)
 	route(mux, http.MethodPost, "/api/aura/library/notes", handleAuraNoteSet)
-	route(mux, http.MethodGet, "/api/aura/accounts", handleAuraAccountsGet)
-	route(mux, http.MethodPost, "/api/aura/accounts/add", handleAuraAccountAdd)
-	route(mux, http.MethodPost, "/api/aura/accounts/switch", handleAuraAccountSwitch)
-	route(mux, http.MethodPost, "/api/aura/accounts/remove", handleAuraAccountRemove)
-	route(mux, http.MethodPost, "/api/aura/sync-to-jm", handleAuraSyncToJm)
 
 	route(mux, http.MethodGet, "/api/jm/register/captcha", handleJMRegisterCaptcha)
 	route(mux, http.MethodPost, "/api/jm/register", handleJMRegister)

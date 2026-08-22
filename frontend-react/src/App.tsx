@@ -34,7 +34,6 @@ import LogoutIcon from '@mui/icons-material/Logout'
 import LoginIcon from '@mui/icons-material/Login'
 import MenuIcon from '@mui/icons-material/Menu'
 import MoreHorizIcon from '@mui/icons-material/MoreHoriz'
-import PersonIcon from '@mui/icons-material/Person'
 import SearchIcon from '@mui/icons-material/Search'
 import SettingsIcon from '@mui/icons-material/Settings'
 import ShuffleIcon from '@mui/icons-material/Shuffle'
@@ -56,7 +55,6 @@ import Favorites from './pages/Favorites'
 import AuraHistory from './pages/AuraHistory'
 import Downloads from './pages/Downloads'
 import Settings from './pages/Settings'
-import Accounts from './pages/Accounts'
 import Login from './pages/Login'
 
 // Material Design 3 自适应导航：
@@ -85,7 +83,6 @@ const NAV_MINE: NavItem[] = [
   { to: '/favorites', label: '收藏夹', icon: <FavoriteIcon /> },
   { to: '/history', label: '阅读历史', icon: <HistoryIcon /> },
   { to: '/downloads', label: '下载管理', icon: <DownloadIcon /> },
-  { to: '/accounts', label: 'JM 账号', icon: <PersonIcon /> },
   { to: '/settings', label: '设置', icon: <SettingsIcon /> },
 ]
 
@@ -451,7 +448,6 @@ export default function App() {
           <Route path="/history" element={<AuraHistory />} />
           <Route path="/downloads" element={<Downloads />} />
           <Route path="/settings" element={<Settings />} />
-          <Route path="/accounts" element={<Accounts />} />
           <Route path="/login" element={<Login />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>

@@ -66,7 +66,7 @@ export default function Favorites() {
       {tab === 0 ? (
         user ? null : (
           <Alert severity="info" sx={{ borderRadius: 3 }}>
-            云端收藏需要绑定并登录 JM 账号后可见；本地收藏夹则随 Aura 账号保存。
+            云端收藏需要登录 JM 账号后可见；本地收藏夹随登录账号保存。
           </Alert>
         )
       ) : null}
@@ -157,7 +157,7 @@ function LocalFoldersPane({ logged }: { logged: boolean }) {
     return (
       <EmptyState
         icon={<FolderIcon />}
-        text="登录 Aura 账号后可使用本地收藏夹"
+        text="登录 JM 账号后可使用本地收藏夹"
         action={
           <Button component={RouterLink} to="/login" variant="contained">
             去登录

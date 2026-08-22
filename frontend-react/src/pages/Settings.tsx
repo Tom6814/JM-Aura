@@ -1,12 +1,10 @@
 // 设置页：
 // - 外观模式（本地主题上下文）
-// - 站点资料 GET/POST /api/site/profile（signature 白名单字段）
 // - JM 连接状态 GET /api/config（legacy 裸响应）+ 会话重登 POST /api/session/relogin
 // - 已存凭证 GET/DELETE /api/credentials
 // - 下载缓存清理 POST /api/v2/cache/cleanup?keep_days=N
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link as RouterLink } from 'react-router-dom'
-import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import Card from '@mui/material/Card'
 import CardContent from '@mui/material/CardContent'
@@ -38,7 +36,7 @@ export default function Settings() {
     return (
       <EmptyState
         icon={<PersonOutlineIcon />}
-        text="登录后可管理站点设置"
+        text="登录 JM 账号后可管理设置"
         action={
           <Button component={RouterLink} to="/login" variant="contained">
             去登录
@@ -52,7 +50,6 @@ export default function Settings() {
         <PersonOutlineIcon sx={{ color: 'primary.main' }} /> 设置
       </SectionTitle>
       <AppearanceCard />
-      <ProfileCard username={user.username} />
       <JmConnectionCard />
       <MaintenanceCard />
     </Stack>
@@ -71,64 +68,6 @@ function AppearanceCard() {
           control={<Switch checked={mode === 'dark'} onChange={toggle} />}
           label={mode === 'dark' ? '深色模式' : '浅色模式'}
         />
-      </CardContent>
-    </Card>
-  )
-}
-
-function ProfileCard({ username }: { username: string }) {
-  const { toast } = useToast()
-  const profile = useAsync(async () => asRecord(await api.get('/api/site/profile')), [])
-  const [sig, setSig] = useState('')
-  const [saving, setSaving] = useState(false)
-
-  useEffect(() => {
-    const s = profile.data?.signature
-    setSig(typeof s === 'string' ? s : '')
-  }, [profile.data])
-
-  const save = async () => {
-    setSaving(true)
-    try {
-      await api.post('/api/site/profile', { signature: sig })
-      toast('签名已保存')
-      profile.reload()
-    } catch (e) {
-      toast(e instanceof Error ? e.message : String(e))
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  return (
-    <Card sx={{ borderRadius: 3 }}>
-      <CardContent>
-        <SectionTitle>站点资料</SectionTitle>
-        {profile.loading ? (
-          <CenterLoading label="加载中…" />
-        ) : profile.error ? (
-          <ErrorState message={`加载失败：${profile.error}`} onRetry={profile.reload} />
-        ) : (
-          <>
-            <Typography variant="body2" color="text.secondary" gutterBottom>
-              账号：{username}
-            </Typography>
-            <TextField
-              fullWidth
-              multiline
-              minRows={2}
-              size="small"
-              label="个性签名"
-              value={sig}
-              onChange={(e) => setSig(e.target.value)}
-            />
-            <Box sx={{ mt: 1.5, textAlign: 'right' }}>
-              <Button variant="contained" disabled={saving} onClick={() => void save()}>
-                保存
-              </Button>
-            </Box>
-          </>
-        )}
       </CardContent>
     </Card>
   )
@@ -178,8 +117,8 @@ function JmConnectionCard() {
         ) : (
           <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={2}>
             <Typography variant="body2">
-              绑定账号：
-              {cfg.data?.username || '未绑定'}
+              账号：
+              {cfg.data?.username || '未登录'}
             </Typography>
             <Button size="small" variant="outlined" disabled={busy} onClick={() => void relogin()}>
               刷新会话

@@ -6,12 +6,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html"
 	"io"
 	"math/rand"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -871,6 +873,47 @@ func handleV2ChapterDetail(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+var (
+	commentBrRe  = regexp.MustCompile(`(?i)<br\s*/?>`)
+	commentTagRe = regexp.MustCompile(`(?is)<[^>]*>`)
+	commentGapRe = regexp.MustCompile(`\n{3,}`)
+)
+
+// sanitizeCommentText strips the HTML shell the upstream forum API wraps
+// around every comment body (e.g. <div style='...'>正文</div>) and returns
+// plain text ready for direct display.
+func sanitizeCommentText(s string) string {
+	s = commentBrRe.ReplaceAllString(s, "\n")
+	s = commentTagRe.ReplaceAllString(s, "")
+	s = html.UnescapeString(s)
+	s = strings.ReplaceAll(s, "\r\n", "\n")
+	s = commentGapRe.ReplaceAllString(s, "\n\n")
+	return strings.TrimSpace(s)
+}
+
+// sanitizeCommentPayload walks decoded JSON in place, cleaning every string
+// stored under a "content" key (comments and nested replies alike).
+func sanitizeCommentPayload(v any) any {
+	switch t := v.(type) {
+	case map[string]any:
+		for k, val := range t {
+			if s, isStr := val.(string); isStr && k == "content" {
+				t[k] = sanitizeCommentText(s)
+				continue
+			}
+			t[k] = sanitizeCommentPayload(val)
+		}
+		return t
+	case []any:
+		for i, item := range t {
+			t[i] = sanitizeCommentPayload(item)
+		}
+		return t
+	default:
+		return v
+	}
+}
+
 func handleV2Comments(w http.ResponseWriter, r *http.Request) {
 	source := r.PathValue("source")
 	comicID := r.PathValue("comic_id")
@@ -893,7 +936,7 @@ func handleV2Comments(w http.ResponseWriter, r *http.Request) {
 		v2Fail(w, err)
 		return
 	}
-	v2OK(w, decodeAny(res.Data))
+	v2OK(w, sanitizeCommentPayload(decodeAny(res.Data)))
 }
 
 func handleV2SendComment(w http.ResponseWriter, r *http.Request) {
@@ -925,7 +968,7 @@ func handleV2SendComment(w http.ResponseWriter, r *http.Request) {
 		v2Fail(w, err)
 		return
 	}
-	v2OK(w, decodeAny(res.Data))
+	v2OK(w, sanitizeCommentPayload(decodeAny(res.Data)))
 }
 
 func handleV2LikeComment(w http.ResponseWriter, r *http.Request) {
