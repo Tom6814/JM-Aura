@@ -258,8 +258,19 @@ export default function ComicDetail() {
                 {d.description}
               </Typography>
             )}
+            {chapters.length > 0 && (
+              <Button
+                variant="contained"
+                size="large"
+                startIcon={<MenuBookIcon />}
+                onClick={() => openChapter(chapters[0]!)}
+                sx={{ mb: 1.5, borderRadius: 3, width: { xs: '100%', sm: 'auto' }, fontWeight: 700 }}
+              >
+                开始阅读
+              </Button>
+            )}
             <Stack direction="row" spacing={1.5} flexWrap="wrap" useFlexGap>
-              <Button variant="contained" startIcon={<FavoriteBorderIcon />} onClick={() => void toggleFav()} disabled={favLoading}>
+              <Button variant="outlined" startIcon={<FavoriteBorderIcon />} onClick={() => void toggleFav()} disabled={favLoading}>
                 收藏
               </Button>
               <Button variant="outlined" startIcon={<DownloadIcon />} onClick={() => void downloadAll()} disabled={dlLoading}>
@@ -290,7 +301,7 @@ export default function ComicDetail() {
       ) : (
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: 'repeat(2, 1fr)', sm: 'repeat(3, 1fr)', md: 'repeat(4, 1fr)' }, gap: 1.5 }}>
           {chapters.map((ch) => (
-            <Button key={ch.id} variant="outlined" onClick={() => openChapter(ch)} sx={{ justifyContent: 'space-between', textTransform: 'none' }}>
+            <Button key={ch.id} variant="outlined" onClick={() => openChapter(ch)} sx={{ justifyContent: 'space-between', textTransform: 'none', minHeight: 46 }}>
               <Box component="span" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {ch.title || ch.id}
               </Box>

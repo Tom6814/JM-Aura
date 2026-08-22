@@ -13,6 +13,10 @@ export type ThemeMode = 'dark' | 'light'
 
 export const BRAND_GRADIENT = 'linear-gradient(135deg, #C5C0FF 0%, #A78BFA 50%, #ECAEE5 100%)'
 
+/** 偏阅读设计：标题用衬线字族（墨韵纸感） */
+export const HEADING_FONT =
+  '"Noto Serif SC", "Source Han Serif SC", "Songti SC", "SimSun", Georgia, serif'
+
 export interface AuraPalette {
   primary: string
   onPrimary: string
@@ -118,18 +122,19 @@ function auraFor(mode: ThemeMode): AuraPalette {
     onError: '#FFFFFF',
     errorContainer: '#FFDAD6',
     onErrorContainer: '#410002',
-    surface: '#FCF8FE',
-    onSurface: '#1B1B22',
-    onSurfaceVariant: '#48455A',
+    // 墨韵纸感：浅色表面走暖纸调
+    surface: '#FBF9F4',
+    onSurface: '#1F1C1A',
+    onSurfaceVariant: '#4D463F',
     surfaceContainerLowest: '#FFFFFF',
-    surfaceContainerLow: '#F7F2FC',
-    surfaceContainer: '#F1ECF7',
-    surfaceContainerHigh: '#ECE7F2',
-    surfaceContainerHighest: '#E6E1EE',
-    outline: '#787489',
-    outlineVariant: '#C9C4DE',
-    inverseSurface: '#302F3C',
-    inverseOnSurface: '#F3EEF9',
+    surfaceContainerLow: '#F5F1E9',
+    surfaceContainer: '#EFE9E0',
+    surfaceContainerHigh: '#E9E2D8',
+    surfaceContainerHighest: '#E3DBD0',
+    outline: '#7E766C',
+    outlineVariant: '#D0C8BB',
+    inverseSurface: '#34302B',
+    inverseOnSurface: '#F6F1E8',
     inversePrimary: '#C5C0FF',
     scrim: '#000000',
   }
@@ -137,6 +142,11 @@ function auraFor(mode: ThemeMode): AuraPalette {
 
 const FONT_FAMILY =
   "'Inter','SF Pro Text',-apple-system,BlinkMacSystemFont,'Segoe UI','Noto Sans SC','PingFang SC','Hiragino Sans GB','Microsoft YaHei',sans-serif"
+
+/** 标题 variants 统一衬线（阅读优先） */
+function headingStyles() {
+  return { fontFamily: HEADING_FONT, letterSpacing: '0.01em' }
+}
 
 export function buildTheme(mode: ThemeMode): Theme {
   const dark = mode === 'dark'
@@ -169,13 +179,13 @@ export function buildTheme(mode: ThemeMode): Theme {
     shape: { borderRadius: 12 },
     typography: {
       fontFamily: FONT_FAMILY,
-      // M3 type scale → MUI variants
-      h1: { fontSize: '3.5625rem', lineHeight: 1.123, fontWeight: 400, letterSpacing: '-0.25px' },
-      h2: { fontSize: '2.8125rem', lineHeight: 1.156, fontWeight: 400 },
-      h3: { fontSize: '2rem', lineHeight: 1.25, fontWeight: 400 },
-      h4: { fontSize: '1.75rem', lineHeight: 1.286, fontWeight: 400 },
-      h5: { fontSize: '1.5rem', lineHeight: 1.333, fontWeight: 400 },
-      h6: { fontSize: '1.375rem', lineHeight: 1.273, fontWeight: 400 },
+      // M3 type scale → MUI variants（标题族用衬线）
+      h1: { fontSize: '3.5625rem', lineHeight: 1.123, fontWeight: 400, ...headingStyles(), letterSpacing: '-0.25px' },
+      h2: { fontSize: '2.8125rem', lineHeight: 1.156, fontWeight: 400, ...headingStyles() },
+      h3: { fontSize: '2rem', lineHeight: 1.25, fontWeight: 400, ...headingStyles() },
+      h4: { fontSize: '1.75rem', lineHeight: 1.286, fontWeight: 400, ...headingStyles() },
+      h5: { fontSize: '1.5rem', lineHeight: 1.333, fontWeight: 400, ...headingStyles() },
+      h6: { fontSize: '1.375rem', lineHeight: 1.273, fontWeight: 400, ...headingStyles() },
       subtitle1: { fontSize: '1rem', lineHeight: 1.5, fontWeight: 500, letterSpacing: '0.15px' },
       subtitle2: { fontSize: '0.875rem', lineHeight: 1.43, fontWeight: 500, letterSpacing: '0.1px' },
       body1: { fontSize: '1rem', lineHeight: 1.5, letterSpacing: '0.5px' },

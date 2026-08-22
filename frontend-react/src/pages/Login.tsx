@@ -14,11 +14,9 @@ import Typography from '@mui/material/Typography'
 import LockIcon from '@mui/icons-material/Lock'
 import LoginIcon from '@mui/icons-material/Login'
 import PersonIcon from '@mui/icons-material/Person'
-import { BRAND_GRADIENT } from '../theme'
+import { BRAND_GRADIENT, HEADING_FONT } from '../theme'
 import { api, ApiError } from '../api'
 import { useAuth } from '../auth'
-
-const HEADING_FONT = '"Noto Serif SC", "Songti SC", "SimSun", serif'
 
 export default function Login() {
   const navigate = useNavigate()

@@ -9,12 +9,11 @@ import PlayArrowIcon from '@mui/icons-material/PlayArrow'
 import SearchIcon from '@mui/icons-material/Search'
 import Typography from '@mui/material/Typography'
 import { api } from '../api'
-import { BRAND_GRADIENT } from '../theme'
+import { BRAND_GRADIENT, HEADING_FONT } from '../theme'
 import { CenterLoading, ComicCard, ErrorState, SectionTitle, useAsync } from '../components'
 import type { ComicSummary } from '../types'
 import { useAuth } from '../auth'
 
-const HEADING_FONT = '"Noto Serif SC", "Songti SC", "SimSun", serif'
 const PROMOTE_CACHE_KEY = 'jm.promote.v1'
 const PROMOTE_TTL = 10 * 60 * 1000
 
@@ -112,7 +111,8 @@ function ContinueReading() {
 
   if (!user || last.loading || last.error || !last.data) return null
   const it = last.data
-  const target = `/reader/${encodeURIComponent(it.photo_id || it.album_id)}`
+  const pageQs = it.page_index > 0 ? `?page=${it.page_index}` : ''
+  const target = `/reader/${encodeURIComponent(it.photo_id || it.album_id)}${pageQs}`
   return (
     <Card sx={{ mb: 3, borderRadius: 3 }}>
       <CardContent sx={{ display: 'flex', alignItems: 'center', gap: 2, p: { xs: 1.5, sm: 2 } }}>
