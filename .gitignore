@@ -46,3 +46,9 @@ backend/config/cookies/
 config/cookies/
 shit.json
 backend/1
+# Go 构建产物（单二进制）
+/jmaura
+server/jmaura
+
+# 前端依赖与构建中间物
+frontend-react/node_modules/
