@@ -488,10 +488,10 @@ func handleAuraSyncToJm(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	writeJSON(w, 200, ok(map[string]any{
-		"created_folders":     created,
-		"added_favorites":     added,
-		"moved":               moved,
-		"duplicates_skipped":  dups,
-		"errors":              errs,
+		"created_folders":    created,
+		"added_favorites":    added,
+		"moved":              moved,
+		"duplicates_skipped": dups,
+		"errors":             errs,
 	}, ""))
 }

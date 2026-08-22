@@ -116,13 +116,13 @@ func handleJmBinding(w http.ResponseWriter, r *http.Request) {
 	}
 	jmLoggedIn := liveJMSession(r)
 	writeJSON(w, 200, ok(map[string]any{
-		"site_logged_in":       siteU != "",
-		"site_username":        siteU,
-		"can_save_credentials": siteU != "",
+		"site_logged_in":        siteU != "",
+		"site_username":         siteU,
+		"can_save_credentials":  siteU != "",
 		"has_saved_credentials": hasSaved,
-		"saved_jm_username":    savedJMUsername,
-		"jm_logged_in":         jmLoggedIn,
-		"jm_username":          savedJMUsername,
+		"saved_jm_username":     savedJMUsername,
+		"jm_logged_in":          jmLoggedIn,
+		"jm_username":           savedJMUsername,
 	}, ""))
 }
 

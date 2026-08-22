@@ -114,18 +114,18 @@ type LoginResult struct {
 }
 
 type CommentData struct {
-	CID       json.Number    `json:"CID"`
-	AID       string         `json:"AID"`
-	UID       string         `json:"UID"`
-	ParentCID json.Number    `json:"parent_CID"`
-	Content   string         `json:"content"`
-	Username  string         `json:"username"`
-	Nickname  string         `json:"nickname"`
-	Likes     int            `json:"likes"`
-	AddTime   string         `json:"addtime"`
-	IsSpoiler interface{}    `json:"is_spoiler"`
-	Replys    []CommentData  `json:"replys"`
-	Photo     string         `json:"photo"`
+	CID       json.Number   `json:"CID"`
+	AID       string        `json:"AID"`
+	UID       string        `json:"UID"`
+	ParentCID json.Number   `json:"parent_CID"`
+	Content   string        `json:"content"`
+	Username  string        `json:"username"`
+	Nickname  string        `json:"nickname"`
+	Likes     int           `json:"likes"`
+	AddTime   string        `json:"addtime"`
+	IsSpoiler interface{}   `json:"is_spoiler"`
+	Replys    []CommentData `json:"replys"`
+	Photo     string        `json:"photo"`
 }
 
 type CommentPage struct {

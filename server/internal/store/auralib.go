@@ -268,7 +268,7 @@ func auraFoldersSorted(user string, withIDs bool) []map[string]any {
 	return out
 }
 
-func AuraListFolders(user string) []map[string]any       { return auraFoldersSorted(user, false) }
+func AuraListFolders(user string) []map[string]any        { return auraFoldersSorted(user, false) }
 func AuraListFoldersWithIDs(user string) []map[string]any { return auraFoldersSorted(user, true) }
 
 type NoteUpdate struct {

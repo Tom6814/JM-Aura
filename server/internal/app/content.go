@@ -429,7 +429,7 @@ func handleFavorites(w http.ResponseWriter, r *http.Request) {
 		ids := []string{}
 		if content, okc := data["content"].([]map[string]any); okc {
 			for _, it := range content {
-				if aid := it["album_id"]; aid != "" {
+				if aid := pyStr(it["album_id"]); aid != "" {
 					ids = append(ids, aid)
 				}
 			}
@@ -505,7 +505,7 @@ func handleFavoritesSync(w http.ResponseWriter, r *http.Request) {
 			}
 			content, _ := data["content"].([]map[string]any)
 			for _, it := range content {
-				aid := strings.TrimSpace(it["album_id"])
+				aid := strings.TrimSpace(pyStr(it["album_id"]))
 				if aid != "" {
 					ids = append(ids, aid)
 				}
@@ -800,7 +800,7 @@ func handleFavoriteFolder(w http.ResponseWriter, r *http.Request) {
 						if moved >= maxMoves {
 							break
 						}
-						aid := strings.TrimSpace(it["album_id"])
+						aid := strings.TrimSpace(pyStr(it["album_id"]))
 						if aid == "" {
 							continue
 						}

@@ -203,21 +203,21 @@ type downloadChapter struct {
 }
 
 type downloadTask struct {
-	TaskID          string            `json:"task_id"`
-	AlbumID         string            `json:"album_id"`
-	AlbumTitle      string            `json:"album_title"`
-	Chapters        []downloadChapter `json:"chapters"`
-	Status          string            `json:"status"`
-	Stage           string            `json:"stage"`
-	Message         string            `json:"message"`
-	CreatedAt       time.Time         `json:"-"`
-	UpdatedAt       time.Time         `json:"-"`
-	TotalImages     int               `json:"total_images"`
-	DownloadedImages int              `json:"downloaded_images"`
-	ZippedFiles     int               `json:"zipped_files"`
-	TotalZipFiles   int               `json:"total_zip_files"`
-	Percent         float64           `json:"percent"`
-	ZipPath         string            `json:"-"`
+	TaskID           string            `json:"task_id"`
+	AlbumID          string            `json:"album_id"`
+	AlbumTitle       string            `json:"album_title"`
+	Chapters         []downloadChapter `json:"chapters"`
+	Status           string            `json:"status"`
+	Stage            string            `json:"stage"`
+	Message          string            `json:"message"`
+	CreatedAt        time.Time         `json:"-"`
+	UpdatedAt        time.Time         `json:"-"`
+	TotalImages      int               `json:"total_images"`
+	DownloadedImages int               `json:"downloaded_images"`
+	ZippedFiles      int               `json:"zipped_files"`
+	TotalZipFiles    int               `json:"total_zip_files"`
+	Percent          float64           `json:"percent"`
+	ZipPath          string            `json:"-"`
 
 	identity string
 }
@@ -658,7 +658,7 @@ func dlChapterRefs(ad *jm.AlbumData, albumID string, chapterIDs []string) [][2]s
 		refs = append(refs, [2]string{sid, strings.TrimSpace(se.Name)})
 	}
 	if len(refs) == 0 && (!filter || allowed[albumID]) {
-		refs = append(refs, [2]string{albumID, ad.Name.String()})
+		refs = append(refs, [2]string{albumID, strings.TrimSpace(ad.Name)})
 	}
 	return refs
 }
@@ -681,8 +681,8 @@ func legacyDownloadAlbum(job legacyDlJob) error {
 	if len(refs) == 0 {
 		return fmt.Errorf("no downloadable chapters for %s", aid)
 	}
-	albumFolder := dlSafeName(ad.Name.String(), 80)
-	if ad.Name.String() == "" || albumFolder == "untitled" {
+	albumFolder := dlSafeName(strings.TrimSpace(ad.Name), 80)
+	if strings.TrimSpace(ad.Name) == "" || albumFolder == "untitled" {
 		albumFolder = aid
 	}
 	rootOut := filepath.Join(dlAlbumsDir, albumFolder)
@@ -737,8 +737,8 @@ func buildAlbumZip(ctx context.Context, albumID, identity string) (string, error
 	if err != nil {
 		return "", err
 	}
-	albumFolder := dlSafeName(ad.Name.String(), 80)
-	if ad.Name.String() == "" || albumFolder == "untitled" {
+	albumFolder := dlSafeName(strings.TrimSpace(ad.Name), 80)
+	if strings.TrimSpace(ad.Name) == "" || albumFolder == "untitled" {
 		albumFolder = aid
 	}
 	rootOut := filepath.Join(tmpRoot, albumFolder)
