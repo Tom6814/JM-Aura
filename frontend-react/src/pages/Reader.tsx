@@ -153,6 +153,7 @@ export default function Reader() {
     [d],
   )
   const scrambleId = String(d?.raw?.scramble_id ?? '0')
+  const imgDomain = d?.raw?.data_original_domain ?? null
   const albumTitle = album.data?.title || d?.raw?.title || ''
 
   const showControls = () => {
@@ -678,7 +679,7 @@ export default function Reader() {
                     sx={{ width: '100%', display: 'flex', justifyContent: 'center', bgcolor: '#000', lineHeight: 0, fontSize: 0 }}
                   >
                     <DscImage
-                      src={chapterImageUrl(chapterId, name)}
+                      src={chapterImageUrl(chapterId, name, imgDomain)}
                       comicId={chapterId}
                       scrambleId={scrambleId}
                       index={i}

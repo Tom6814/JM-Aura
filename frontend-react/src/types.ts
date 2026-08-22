@@ -70,7 +70,12 @@ export interface V2UserProfile {
   raw?: Record<string, unknown>
 }
 
-/** 图片代理地址（同源，供 DescrambledImage 以 crossOrigin 加载） */
-export function chapterImageUrl(photoId: string, imageName: string): string {
-  return `/api/chapter_image/${encodeURIComponent(photoId)}/${encodeURIComponent(imageName)}`
+/** 图片代理地址（同源，供 DescrambledImage 以 crossOrigin 加载）。
+ *  domain 参数对齐旧版 Vue 实现，让后端优先用 chapter_view_template 返回的域名拉图。 */
+export function chapterImageUrl(photoId: string, imageName: string, domain?: string | null): string {
+  let url = `/api/chapter_image/${encodeURIComponent(photoId)}/${encodeURIComponent(imageName)}`
+  if (domain) {
+    url += `?domain=${encodeURIComponent(domain)}`
+  }
+  return url
 }

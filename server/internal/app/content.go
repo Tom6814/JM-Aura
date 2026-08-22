@@ -343,10 +343,27 @@ func fetchJmChapter(ctx context.Context, ck map[string]string, photoID string) (
 		info.Names = append(info.Names, s)
 	}
 	sc := pd.ScrambleID.String()
-	if sc == "" {
+	dom := pd.DataOriginalDomain
+	// JM /chapter API 常不返回 scramble_id / data_original_domain，
+	// 需回退 /chapter_view_template 提取（对齐 legacy handleChapter 与 Python 官方实现）。
+	if sc == "" || sc == "0" || dom == nil || dom == "" {
+		if tpl, terr := apiClient().ChapterViewTemplate(ctx, photoID, ck); terr == nil {
+			tplInfo := parseChapterViewTemplate(string(tpl))
+			if (sc == "" || sc == "0") && tplInfo["scramble_id"] != nil {
+				if s, ok := tplInfo["scramble_id"].(string); ok && s != "" && s != "0" {
+					sc = s
+				}
+			}
+			if (dom == nil || dom == "") && tplInfo["data_original_domain"] != nil {
+				dom = tplInfo["data_original_domain"]
+			}
+		}
+	}
+	if sc == "" || sc == "0" {
 		sc = "0"
 	}
 	info.ScrambleID = sc
+	info.DataOriginalDomain = dom
 	aid := pd.SeriesID
 	if aid == "" {
 		aid = pd.ID.String()
