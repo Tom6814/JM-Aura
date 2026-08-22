@@ -1,6 +1,7 @@
 package jm
 
 import (
+	"compress/gzip"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -143,7 +144,16 @@ func (c *Client) doRequest(ctx context.Context, method, fullURL string, form url
 		return 0, nil, nil, err
 	}
 	defer resp.Body.Close()
-	data, err := io.ReadAll(resp.Body)
+	var reader io.Reader = resp.Body
+	if strings.EqualFold(resp.Header.Get("Content-Encoding"), "gzip") {
+		gz, gerr := gzip.NewReader(resp.Body)
+		if gerr != nil {
+			return resp.StatusCode, nil, resp.Header, gerr
+		}
+		defer gz.Close()
+		reader = gz
+	}
+	data, err := io.ReadAll(reader)
 	if err != nil {
 		return resp.StatusCode, nil, resp.Header, err
 	}
@@ -255,7 +265,15 @@ func (c *Client) refreshDomainsFromTOS(ctx context.Context) ([]string, bool) {
 			continue
 		}
 		c.mu.Lock()
-		c.apiDomains = ds
+		merged := make([]string, 0, len(ds)+len(c.apiDomains))
+		seen := make(map[string]struct{}, len(ds)+len(c.apiDomains))
+		for _, d := range append(append([]string(nil), ds...), c.apiDomains...) {
+			if _, ok := seen[d]; !ok {
+				seen[d] = struct{}{}
+				merged = append(merged, d)
+			}
+		}
+		c.apiDomains = merged
 		c.mu.Unlock()
 		return ds, true
 	}
