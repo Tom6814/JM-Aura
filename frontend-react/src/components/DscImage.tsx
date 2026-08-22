@@ -36,11 +36,13 @@ interface DscImageProps {
   index?: number
   /** 超过该序号的图片进入视口后才真正加载（阅读器性能门控） */
   lazyAfter?: number
+  /** 阅读器内解除 900px 上限，跟随容器宽度设置 */
+  fullWidth?: boolean
 }
 
 type Phase = 'idle' | 'loading' | 'error' | 'done'
 
-export default function DscImage({ src, comicId, scrambleId, index = 0, lazyAfter }: DscImageProps) {
+export default function DscImage({ src, comicId, scrambleId, index = 0, lazyAfter, fullWidth }: DscImageProps) {
   const [phase, setPhase] = useState<Phase>('idle')
   const [displaySrc, setDisplaySrc] = useState('')
   const [imgKey, setImgKey] = useState(0)
@@ -208,7 +210,7 @@ export default function DscImage({ src, comicId, scrambleId, index = 0, lazyAfte
           src={displaySrc}
           alt=""
           decoding="async"
-          sx={{ display: 'block', width: '100%', maxWidth: 900, mx: 'auto', userSelect: 'none', WebkitUserSelect: 'none' }}
+          sx={{ display: 'block', width: '100%', maxWidth: fullWidth ? 'none' : 900, mx: 'auto', userSelect: 'none', WebkitUserSelect: 'none' }}
         />
       ) : phase === 'error' ? (
         <Box
