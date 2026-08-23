@@ -42,6 +42,10 @@ interface DscImageProps {
 
 type Phase = 'idle' | 'loading' | 'error' | 'done'
 
+// Safari/WebKit 对单张 canvas 总像素的硬上限约为 16,777,216（4096×4096）。
+// 超出时 canvas 会静默失效、toBlob 返回 null、toDataURL 返回 "data:,"。
+const SAFARI_MAX_CANVAS_AREA = 16_777_216
+
 export default function DscImage({ src, comicId, scrambleId, index = 0, lazyAfter, fullWidth }: DscImageProps) {
   const [phase, setPhase] = useState<Phase>('idle')
   const [displaySrc, setDisplaySrc] = useState('')
@@ -51,8 +55,19 @@ export default function DscImage({ src, comicId, scrambleId, index = 0, lazyAfte
   const holderRef = useRef<HTMLDivElement | null>(null)
   const loadTokenRef = useRef(0)
   const retriesRef = useRef(0)
+  const objectUrlRef = useRef<string | null>(null)
 
   const needDescramble = !isGif(src) && scrambleId !== '0'
+
+  // 统一替换展示地址：若上一个是 object URL 则先释放，避免内存泄漏与 Safari 配额占用
+  const applyDisplaySrc = useCallback((url: string, isObjectUrl: boolean) => {
+    if (objectUrlRef.current) {
+      URL.revokeObjectURL(objectUrlRef.current)
+      objectUrlRef.current = null
+    }
+    if (isObjectUrl) objectUrlRef.current = url
+    setDisplaySrc(url)
+  }, [])
 
   // 懒加载门控：仅当 index 超出预载窗口时才等待可见性
   useEffect(() => {
@@ -81,27 +96,41 @@ export default function DscImage({ src, comicId, scrambleId, index = 0, lazyAfte
   }, [lazyAfter, index])
 
   const cutImage = useCallback(
-    (image: HTMLImageElement, token: number): boolean => {
+    async (image: HTMLImageElement, token: number): Promise<boolean> => {
       try {
         const width = image.naturalWidth
         const height = image.naturalHeight
+        if (!width || !height) return false
         const pictureName = src.substring(src.lastIndexOf('/') + 1).split('?')[0]
         const sliceCount = getSegmentationNum(comicId, scrambleId, pictureName)
-        if (!width || !height || sliceCount <= 1 || height < sliceCount * 2) {
-          setDisplaySrc(src)
+        if (sliceCount <= 1 || height < sliceCount * 2) {
+          // 未乱序或切片过薄：直接展示原代理图（此时原图即正确顺序）
+          applyDisplaySrc(src, false)
           return true
         }
+
+        // 等比缩小到 Safari 像素上限以内，避免 canvas 静默失效
+        let drawW = width
+        let drawH = height
+        if (drawW * drawH > SAFARI_MAX_CANVAS_AREA) {
+          const scale = Math.sqrt(SAFARI_MAX_CANVAS_AREA / (drawW * drawH))
+          drawW = Math.max(1, Math.floor(width * scale))
+          drawH = Math.max(1, Math.floor(height * scale))
+        }
+        const scaleH = drawH / height
 
         const canvas = document.createElement('canvas')
-        canvas.width = width
-        canvas.height = height
+        canvas.width = drawW
+        canvas.height = drawH
         const context = canvas.getContext('2d')
         if (!context) {
-          setDisplaySrc(src)
+          // 极少数环境无法取得 2D 上下文：回退原图，避免空白
+          applyDisplaySrc(src, false)
           return true
         }
 
-        // 与旧版一致：先构建各块的 [startY, endY]，再从最后一块向前依次绘制
+        // 先按原图坐标构建各块 [startY, endY]，再从最后一块向前依次绘制；
+        // 目标坐标按 scaleH/scaleW 同比缩放（未触发上限时 scale=1，与旧版完全一致）
         const rem = height % sliceCount
         const copyHeight = Math.floor(height / sliceCount)
         const blocks: Array<[number, number]> = []
@@ -120,18 +149,30 @@ export default function DscImage({ src, comicId, scrambleId, index = 0, lazyAfte
           const start = blocks[i][0]
           const end = blocks[i][1]
           const sliceH = end - start
-          context.drawImage(image, 0, start, width, sliceH, 0, destY, width, sliceH)
-          destY += sliceH
+          const dstSliceH = sliceH * scaleH
+          context.drawImage(image, 0, start, width, sliceH, 0, destY, drawW, dstSliceH)
+          destY += dstSliceH
         }
 
+        // 用 toBlob + createObjectURL 取代 toDataURL：
+        // 后者为同步 base64，体积膨胀约 33%，易触发 Safari 数据 URL 与内存上限
+        const blob = await new Promise<Blob | null>((resolve) =>
+          canvas.toBlob(resolve, 'image/jpeg', 0.92),
+        )
         if (loadTokenRef.current !== token) return false
-        setDisplaySrc(canvas.toDataURL('image/jpeg', 0.92))
+        if (!blob || blob.size === 0) {
+          // canvas 输出无效（仍超过隐性限制等）：回退原图而非展示空白
+          applyDisplaySrc(src, false)
+          return true
+        }
+        const objectUrl = URL.createObjectURL(blob)
+        applyDisplaySrc(objectUrl, true)
         return true
       } catch {
         return false
       }
     },
-    [src, comicId, scrambleId],
+    [src, comicId, scrambleId, applyDisplaySrc],
   )
 
   useEffect(() => {
@@ -161,18 +202,21 @@ export default function DscImage({ src, comicId, scrambleId, index = 0, lazyAfte
       cleanup()
       if (loadTokenRef.current !== token) return
       if (!needDescramble) {
-        setDisplaySrc(url)
+        applyDisplaySrc(url, false)
         setPhase('done')
         return
       }
-      if (cutImage(image, token)) {
-        setPhase('done')
-      } else if (retriesRef.current < 3) {
-        retriesRef.current += 1
-        setImgKey((k) => k + 1)
-      } else {
-        setPhase('error')
-      }
+      cutImage(image, token).then((ok) => {
+        if (loadTokenRef.current !== token) return
+        if (ok) {
+          setPhase('done')
+        } else if (retriesRef.current < 3) {
+          retriesRef.current += 1
+          setImgKey((k) => k + 1)
+        } else {
+          setPhase('error')
+        }
+      })
     }
     image.onerror = () => {
       cleanup()
@@ -186,18 +230,26 @@ export default function DscImage({ src, comicId, scrambleId, index = 0, lazyAfte
     }
     image.src = url
     return cleanup
-  }, [phase, visible, imgKey, src, needDescramble, cutImage])
+  }, [phase, visible, imgKey, src, needDescramble, cutImage, applyDisplaySrc])
 
-  // 组件卸载或换页时使进行中的任务失效
+  // 组件卸载或换页时使进行中的任务失效，并释放可能存在的 object URL
   useEffect(() => {
     return () => {
       loadTokenRef.current += 1
+      if (objectUrlRef.current) {
+        URL.revokeObjectURL(objectUrlRef.current)
+        objectUrlRef.current = null
+      }
     }
   }, [])
 
   const retry = () => {
     retriesRef.current = 0
     setImgKey(0)
+    if (objectUrlRef.current) {
+      URL.revokeObjectURL(objectUrlRef.current)
+      objectUrlRef.current = null
+    }
     setDisplaySrc('')
     setPhase('idle')
   }
